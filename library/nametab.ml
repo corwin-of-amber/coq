@@ -334,7 +334,7 @@ let the_modtyperevtab = ref (MPmap.empty : mptrevtab)
 module UnivIdOrdered =
 struct
   type t = universe_id
-  let hash (d, i) = i + DirPath.hash d
+  let hash (d, i) = Hashset.Combine.combinei i (DirPath.hash d)
   let compare (d, i) (d', i') =
     let c = Int.compare i i' in
     if Int.equal c 0 then DirPath.compare d d'

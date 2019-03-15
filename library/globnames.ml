@@ -113,10 +113,10 @@ let global_ord_gen ord_cst ord_ind ord_cons x y =
 let global_hash_gen hash_cst hash_ind hash_cons gr =
   let open Hashset.Combine in
   match gr with
-  | ConstRef c -> combinesmall 1 (hash_cst c)
-  | IndRef i -> combinesmall 2 (hash_ind i)
-  | ConstructRef c -> combinesmall 3 (hash_cons c)
-  | VarRef id -> combinesmall 4 (Id.hash id)
+  | ConstRef c -> combinesmalli 1 (hash_cst c)
+  | IndRef i -> combinesmalli 2 (hash_ind i)
+  | ConstructRef c -> combinesmalli 3 (hash_cons c)
+  | VarRef id -> combinesmalli 4 (Id.hash id)
 
 (* By default, [global_reference] are ordered on their canonical part *)
 
@@ -179,8 +179,8 @@ module ExtRefOrdered = struct
   open Hashset.Combine
 
   let hash = function
-  | TrueGlobal gr -> combinesmall 1 (RefOrdered_env.hash gr)
-  | SynDef kn -> combinesmall 2 (KerName.hash kn)
+  | TrueGlobal gr -> combinesmalli 1 (RefOrdered_env.hash gr)
+  | SynDef kn -> combinesmalli 2 (KerName.hash kn)
 
 end
 

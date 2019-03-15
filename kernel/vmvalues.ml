@@ -88,7 +88,7 @@ let rec eq_structured_values v1 v2 =
 
 let hash_structured_values (v : structured_values) =
   (* We may want a better hash function here *)
-  Hashtbl.hash v
+  Int32.of_int @@ Hashtbl.hash v
 
 let eq_structured_constant c1 c2 = match c1, c2 with
 | Const_sort s1, Const_sort s2 -> Sorts.equal s1 s2
@@ -105,11 +105,11 @@ let eq_structured_constant c1 c2 = match c1, c2 with
 let hash_structured_constant c =
   let open Hashset.Combine in
   match c with
-  | Const_sort s -> combinesmall 1 (Sorts.hash s)
-  | Const_ind i -> combinesmall 2 (ind_hash i)
-  | Const_b0 t -> combinesmall 3 (Int.hash t)
-  | Const_univ_level l -> combinesmall 4 (Univ.Level.hash l)
-  | Const_val v -> combinesmall 5 (hash_structured_values v)
+  | Const_sort s -> combinesmalli 1 (Sorts.hash s)
+  | Const_ind i -> combinesmalli 2 (ind_hash i)
+  | Const_b0 t -> combinesmallii 3 (Int.hash t)
+  | Const_univ_level l -> combinesmalli 4 (Univ.Level.hash l)
+  | Const_val v -> combinesmalli 5 (hash_structured_values v)
 
 let eq_annot_switch asw1 asw2 =
   let eq_ci ci1 ci2 =
@@ -125,8 +125,8 @@ let eq_annot_switch asw1 asw2 =
 let hash_annot_switch asw =
   let open Hashset.Combine in
   let h1 = Constr.case_info_hash asw.ci in
-  let h2 = Array.fold_left (fun h (t, i) -> combine3 h t i) 0 asw.rtbl in
-  let h3 = if asw.tailcall then 1 else 0 in
+  let h2 = Array.fold_left (fun h (t, i) -> combine3 h (Int32.of_int t) (Int32.of_int i)) Int32.zero asw.rtbl in
+  let h3 = if asw.tailcall then Int32.one else Int32.zero in
   combine3 h1 h2 h3
 
 let pp_sort s =
@@ -444,11 +444,11 @@ struct
   type t = id_key
   let equal = eq_id_key
   open Hashset.Combine
-  let hash = function
-  | ConstKey c -> combinesmall 1 (Constant.hash c)
-  | VarKey id -> combinesmall 2 (Id.hash id)
-  | RelKey i -> combinesmall 3 (Int.hash i)
-  | EvarKey evk -> combinesmall 4 (Evar.hash evk)
+  let hash k = Int32.to_int (match k with
+  | ConstKey c -> combinesmalli 1 (Constant.hash c)
+  | VarKey id -> combinesmalli 2 (Id.hash id)
+  | RelKey i -> combinesmallii 3 (Int.hash i)
+  | EvarKey evk -> combinesmalli 4 (Evar.hash evk))
 end
 
 module KeyTable = Hashtbl.Make(IdKeyHash)

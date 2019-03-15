@@ -383,7 +383,11 @@ let rec sort_subterm gl l =
     | [] -> []
     | h::t -> insert h (sort_subterm gl t)
 
-module Constrhash = Hashtbl.Make(Constr)
+module Constrhash = Hashtbl.Make(struct
+    type t = Constr.t
+    let equal = Constr.equal
+    let hash k = Int32.to_int @@ Constr.hash k
+end)
 
 let subst_meta subst c =
   let subst = List.map (fun (i, c) -> i, EConstr.Unsafe.to_constr c) subst in

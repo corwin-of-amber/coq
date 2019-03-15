@@ -12,7 +12,7 @@ module type HashedType =
 sig
   type t
   val compare : t -> t -> int
-  val hash : t -> int
+  val hash : t -> int32
 end
 
 module SetMake(M : HashedType) =
@@ -40,34 +40,34 @@ struct
   let mem x s =
     let h = M.hash x in
     try
-      let m = Int.Map.find h s in
+      let m = Int.Map.find (Int32.to_int h) s in
       Set.mem x m
     with Not_found -> false
 
   let add x s =
     let h = M.hash x in
     try
-      let m = Int.Map.find h s in
+      let m = Int.Map.find (Int32.to_int h) s in
       let m = Set.add x m in
-      Int.Map.set h m s
+      Int.Map.set (Int32.to_int h) m s
     with Not_found ->
       let m = Set.singleton x in
-      Int.Map.add h m s
+      Int.Map.add (Int32.to_int h) m s
 
   let singleton x =
     let h = M.hash x in
     let m = Set.singleton x in
-    Int.Map.singleton h m
+    Int.Map.singleton (Int32.to_int h) m
 
   let remove x s =
     let h = M.hash x in
     try
-      let m = Int.Map.find h s in
+      let m = Int.Map.find (Int32.to_int h) s in
       let m = Set.remove x m in
       if Set.is_empty m then
-        Int.Map.remove h s
+        Int.Map.remove (Int32.to_int h) s
       else
-        Int.Map.set h m s
+        Int.Map.set (Int32.to_int h) m s
     with Not_found -> s
 
   let height s = Int.Map.height s
@@ -235,19 +235,19 @@ struct
   let mem k s =
     let h = M.hash k in
     try
-      let m = Int.Map.find h s in
+      let m = Int.Map.find (Int32.to_int h) s in
       Map.mem k m
     with Not_found -> false
 
   let add k x s =
     let h = M.hash k in
     try
-      let m = Int.Map.find h s in
+      let m = Int.Map.find (Int32.to_int h) s in
       let m = Map.add k x m in
-      Int.Map.set h m s
+      Int.Map.set (Int32.to_int h) m s
     with Not_found ->
       let m = Map.singleton k x in
-      Int.Map.add h m s
+      Int.Map.add (Int32.to_int h) m s
 
   (* when Coq requires OCaml 4.06 or later, the module type
      CSig.MapS may include the signature of OCaml's "update",
@@ -259,17 +259,17 @@ struct
 
   let singleton k x =
     let h = M.hash k in
-    Int.Map.singleton h (Map.singleton k x)
+    Int.Map.singleton (Int32.to_int h) (Map.singleton k x)
 
   let remove k s =
     let h = M.hash k in
     try
-      let m = Int.Map.find h s in
+      let m = Int.Map.find (Int32.to_int h) s in
       let m = Map.remove k m in
       if Map.is_empty m then
-        Int.Map.remove h s
+        Int.Map.remove (Int32.to_int h) s
       else
-        Int.Map.set h m s
+        Int.Map.set (Int32.to_int h) m s
     with Not_found -> s
 
   let merge f s1 s2 =
@@ -350,7 +350,7 @@ struct
 
   let find k s =
     let h = M.hash k in
-    let m = Int.Map.find h s in
+    let m = Int.Map.find (Int32.to_int h) s in
     Map.find k m
 
   let get k s = try find k s with Not_found -> assert false
@@ -367,9 +367,9 @@ struct
 
   let modify k f s =
     let h = M.hash k in
-    let m = Int.Map.find h s in
+    let m = Int.Map.find (Int32.to_int h) s in
     let m = Map.modify k f m in
-    Int.Map.set h m s
+    Int.Map.set (Int32.to_int h) m s
 
   let bind f s =
     let fb m = Map.bind f m in
@@ -379,9 +379,9 @@ struct
 
   let set k x s =
     let h = M.hash k in
-    let m = Int.Map.find h s in
+    let m = Int.Map.find (Int32.to_int h) s in
     let m = Map.set k x m in
-    Int.Map.set h m s
+    Int.Map.set (Int32.to_int h) m s
 
   module Smart =
   struct

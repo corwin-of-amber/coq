@@ -32,7 +32,7 @@ sig
   val equal : t -> t -> bool
   (** Equality function *)
 
-  val hash : t -> int
+  val hash : t -> int32
 
   val make : Names.DirPath.t -> int -> t
   (** Create a new universe level from a unique identifier and an associated
@@ -84,7 +84,7 @@ sig
   val equal : t -> t -> bool
   (** Equality function on formal universes *)
 
-  val hash : t -> int
+  val hash : t -> int32
   (** Hash function *)
 
   val make : Level.t -> t
@@ -284,7 +284,7 @@ sig
   val hcons : t -> t
   (** Hash-consing. *)
 
-  val hash : t -> int
+  val hash : t -> int32
   (** Hash value *)
 
   val share : t -> t * int

@@ -97,22 +97,26 @@ let dummy_gname =
 
 open Hashset.Combine
 
+let option_hash hf = function
+| None -> Int32.zero
+| Some x -> hf x
+
 let gname_hash gn = match gn with
 | Gind (s, ind) ->
-   combinesmall 1 (combine (String.hash s) (ind_hash ind))
+   combinesmalli 1 (combinei (String.hash s) (ind_hash ind))
 | Gconstruct (s, c) ->
-   combinesmall 2 (combine (String.hash s) (constructor_hash c))
+   combinesmalli 2 (combinei (String.hash s) (constructor_hash c))
 | Gconstant (s, c) ->
-   combinesmall 3 (combine (String.hash s) (Constant.hash c))
-| Gcase (l, i) -> combinesmall 4 (combine (Option.hash Label.hash l) (Int.hash i))
-| Gpred (l, i) -> combinesmall 5 (combine (Option.hash Label.hash l) (Int.hash i))
-| Gfixtype (l, i) -> combinesmall 6 (combine (Option.hash Label.hash l) (Int.hash i))
-| Gnorm (l, i) -> combinesmall 7 (combine (Option.hash Label.hash l) (Int.hash i))
-| Gnormtbl (l, i) -> combinesmall 8 (combine (Option.hash Label.hash l) (Int.hash i))
-| Ginternal s -> combinesmall 9 (String.hash s)
-| Grel i -> combinesmall 10 (Int.hash i)
-| Gnamed id -> combinesmall 11 (Id.hash id)
-| Gproj (s, p, i) -> combinesmall 12 (combine (String.hash s) (combine (ind_hash p) i))
+   combinesmalli 3 (combinei (String.hash s) (Constant.hash c))
+| Gcase (l, i) -> combinesmalli 4 (combine_i (option_hash Label.hash l) (Int.hash i))
+| Gpred (l, i) -> combinesmalli 5 (combine_i (option_hash Label.hash l) (Int.hash i))
+| Gfixtype (l, i) -> combinesmalli 6 (combine_i (option_hash Label.hash l) (Int.hash i))
+| Gnorm (l, i) -> combinesmalli 7 (combine_i (option_hash Label.hash l) (Int.hash i))
+| Gnormtbl (l, i) -> combinesmalli 8 (combine_i (option_hash Label.hash l) (Int.hash i))
+| Ginternal s -> combinesmallii 9 (String.hash s)
+| Grel i -> combinesmallii 10 (Int.hash i)
+| Gnamed id -> combinesmalli 11 (Id.hash id)
+| Gproj (s, p, i) -> combinesmalli 12 (combinei (String.hash s) (combine_i (ind_hash p) i))
 
 let case_ctr = ref (-1)
 
@@ -176,21 +180,21 @@ let eq_symbol sy1 sy2 =
 
 let hash_symbol symb =
   match symb with
-  | SymbValue v -> combinesmall 1 (Hashtbl.hash v) (** FIXME *)
-  | SymbSort s -> combinesmall 2 (Sorts.hash s)
-  | SymbName name -> combinesmall 3 (Name.hash name)
-  | SymbConst c -> combinesmall 4 (Constant.hash c)
-  | SymbMatch sw -> combinesmall 5 (hash_annot_sw sw)
-  | SymbInd ind -> combinesmall 6 (ind_hash ind)
-  | SymbMeta m -> combinesmall 7 m
-  | SymbEvar evk -> combinesmall 8 (Evar.hash evk)
-  | SymbLevel l -> combinesmall 9 (Univ.Level.hash l)
-  | SymbProj (i, k) -> combinesmall 10 (combine (ind_hash i) k)
+  | SymbValue v -> combinesmallii 1 (Hashtbl.hash v) (** FIXME *)
+  | SymbSort s -> combinesmalli 2 (Sorts.hash s)
+  | SymbName name -> combinesmalli 3 (Name.hash name)
+  | SymbConst c -> combinesmalli 4 (Constant.hash c)
+  | SymbMatch sw -> combinesmalli 5 (hash_annot_sw sw)
+  | SymbInd ind -> combinesmalli 6 (ind_hash ind)
+  | SymbMeta m -> combinesmallii 7 m
+  | SymbEvar evk -> combinesmalli 8 (Evar.hash evk)
+  | SymbLevel l -> combinesmalli 9 (Univ.Level.hash l)
+  | SymbProj (i, k) -> combinesmalli 10 (combine_i (ind_hash i) k)
 
 module HashedTypeSymbol = struct
   type t = symbol
   let equal = eq_symbol
-  let hash = hash_symbol
+  let hash k = Int32.to_int (hash_symbol k)
 end
 
 module HashtblSymbol = Hashtbl.Make(HashedTypeSymbol)
@@ -329,51 +333,51 @@ let eq_primitive p1 p2 =
   | _ -> false
 
 let primitive_hash = function
-  | Mk_prod -> 1
-  | Mk_sort -> 2
-  | Mk_ind -> 3
-  | Mk_const -> 4
-  | Mk_sw -> 5
+  | Mk_prod -> Int32.of_int 1
+  | Mk_sort -> Int32.of_int 2
+  | Mk_ind -> Int32.of_int 3
+  | Mk_const -> Int32.of_int 4
+  | Mk_sw -> Int32.of_int 5
   | Mk_fix (r, i) ->
-     let h = Array.fold_left (fun h i -> combine h (Int.hash i)) 0 r in
-     combinesmall 6 (combine h (Int.hash i))
+     let h = Array.fold_left (fun h i -> combine_i h (Int.hash i)) Int32.zero r in
+     combinesmalli 6 (combine_i h (Int.hash i))
   | Mk_cofix i ->
-     combinesmall 7 (Int.hash i)
+     combinesmallii 7 (Int.hash i)
   | Mk_rel i ->
-     combinesmall 8 (Int.hash i)
+     combinesmallii 8 (Int.hash i)
   | Mk_var id ->
-     combinesmall 9 (Id.hash id)
-  | Is_int -> 11
-  | Cast_accu -> 12
-  | Upd_cofix -> 13
-  | Force_cofix -> 14
-  | Mk_uint -> 15
-  | Mk_int -> 16
-  | Mk_bool -> 17
-  | Val_to_int -> 18
-  | Mk_I31_accu -> 19
-  | Decomp_uint -> 20
-  | Mk_meta -> 21
-  | Mk_evar -> 22
-  | MLand -> 23
-  | MLle -> 24
-  | MLlt -> 25
-  | MLinteq -> 26
-  | MLlsl -> 27
-  | MLlsr -> 28
-  | MLland -> 29
-  | MLlor -> 30
-  | MLlxor -> 31
-  | MLadd -> 32
-  | MLsub -> 33
-  | MLmul -> 34
-  | MLmagic -> 35
-  | Coq_primitive (prim, None) -> combinesmall 36 (CPrimitives.hash prim)
+     combinesmalli 9 (Id.hash id)
+  | Is_int -> Int32.of_int 11
+  | Cast_accu -> Int32.of_int 12
+  | Upd_cofix -> Int32.of_int 13
+  | Force_cofix -> Int32.of_int 14
+  | Mk_uint -> Int32.of_int 15
+  | Mk_int -> Int32.of_int 16
+  | Mk_bool -> Int32.of_int 17
+  | Val_to_int -> Int32.of_int 18
+  | Mk_I31_accu -> Int32.of_int 19
+  | Decomp_uint -> Int32.of_int 20
+  | Mk_meta -> Int32.of_int 21
+  | Mk_evar -> Int32.of_int 22
+  | MLand -> Int32.of_int 23
+  | MLle -> Int32.of_int 24
+  | MLlt -> Int32.of_int 25
+  | MLinteq -> Int32.of_int 26
+  | MLlsl -> Int32.of_int 27
+  | MLlsr -> Int32.of_int 28
+  | MLland -> Int32.of_int 29
+  | MLlor -> Int32.of_int 30
+  | MLlxor -> Int32.of_int 31
+  | MLadd -> Int32.of_int 32
+  | MLsub -> Int32.of_int 33
+  | MLmul -> Int32.of_int 34
+  | MLmagic -> Int32.of_int 35
+  | Coq_primitive (prim, None) -> combinesmalli 36 (CPrimitives.hash prim)
   | Coq_primitive (prim, Some (prefix,kn)) ->
-     combinesmall 37 (combine3 (String.hash prefix) (Constant.hash kn) (CPrimitives.hash prim))
-  | Mk_proj -> 38
-  | MLarrayget -> 39
-  | Mk_empty_instance -> 40
+     combinesmalli 37 (combine3 (Int32.of_int (String.hash prefix)) (Constant.hash kn) (CPrimitives.hash prim))
+  | Mk_proj -> Int32.of_int 38
+  | MLarrayget -> Int32.of_int 39
+  | Mk_empty_instance -> Int32.of_int 40
 
 type mllambda =
   | MLlocal        of lname 
@@ -496,63 +500,63 @@ and eq_mllam_branches gn1 gn2 n env1 env2 br1 br2 =
   Array.equal eq_branch br1 br2
 
 (* hash_mllambda gn n env t computes the hash for t ignoring occurrences of gn *)
-let rec hash_mllambda gn n env t =
+let rec hash_mllambda gn n (env : int LNmap.t) t =
   match t with
-  | MLlocal ln -> combinesmall 1 (LNmap.find ln env)
-  | MLglobal gn' -> combinesmall 2 (if eq_gname gn gn' then 0 else gname_hash gn')
-  | MLprimitive prim -> combinesmall 3 (primitive_hash prim)
+  | MLlocal ln -> combinesmallii 1 (LNmap.find ln env)
+  | MLglobal gn' -> combinesmalli 2 (if eq_gname gn gn' then Int32.zero else gname_hash gn')
+  | MLprimitive prim -> combinesmalli 3 (primitive_hash prim)
   | MLlam (lns, ml) ->
       let env = push_lnames n env lns in
-      combinesmall 4 (combine (Array.length lns) (hash_mllambda gn (n+1) env ml))
+      combinesmalli 4 (combinei (Array.length lns) (hash_mllambda gn (n+1) env ml))
   | MLletrec (defs, body) ->
       let lns = Array.map (fun (x,_,_) -> x) defs in
       let env = push_lnames n env lns in
       let n = n + Array.length defs in
-      let h = combine (hash_mllambda gn n env body) (Array.length defs) in
-      combinesmall 5 (hash_mllambda_letrec gn n env h defs)
+      let h = combine_i (hash_mllambda gn n env body) (Array.length defs) in
+      combinesmalli 5 (hash_mllambda_letrec gn n env h defs)
   | MLlet (ln, def, body) ->
       let hdef = hash_mllambda gn n env def in
       let env = LNmap.add ln n env in
-      combinesmall 6 (combine hdef (hash_mllambda gn (n+1) env body))
+      combinesmalli 6 (combine hdef (hash_mllambda gn (n+1) env body))
   | MLapp (ml, args) ->
       let h = hash_mllambda gn n env ml in
-      combinesmall 7 (hash_mllambda_array gn n env h args)
+      combinesmalli 7 (hash_mllambda_array gn n env h args)
   | MLif (cond,br,br') ->
       let hcond = hash_mllambda gn n env cond in
       let hbr = hash_mllambda gn n env br in
       let hbr' = hash_mllambda gn n env br' in
-      combinesmall 8 (combine3 hcond hbr hbr')
+      combinesmalli 8 (combine3 hcond hbr hbr')
   | MLmatch (annot, c, accu, br) ->
       let hannot = hash_annot_sw annot in
       let hc = hash_mllambda gn n env c in
       let haccu = hash_mllambda gn n env accu in
-      combinesmall 9 (hash_mllam_branches gn n env (combine3 hannot hc haccu) br)
+      combinesmalli 9 (hash_mllam_branches gn n env (combine3 hannot hc haccu) br)
   | MLconstruct (pf, cs, args) ->
       let hpf = String.hash pf in
       let hcs = constructor_hash cs in
-      combinesmall 10 (hash_mllambda_array gn n env (combine hpf hcs) args)
+      combinesmalli 10 (hash_mllambda_array gn n env (combinei hpf hcs) args)
   | MLint i ->
-      combinesmall 11 i
+      combinesmallii 11 i
   | MLuint i ->
-      combinesmall 12 (Uint31.to_int i)
+      combinesmallii 12 (Uint31.to_int i)
   | MLsetref (id, ml) ->
       let hid = String.hash id in
       let hml = hash_mllambda gn n env ml in
-      combinesmall 13 (combine hid hml)
+      combinesmalli 13 (combinei hid hml)
   | MLsequence (ml, ml') ->
       let hml = hash_mllambda gn n env ml in
       let hml' = hash_mllambda gn n env ml' in
-      combinesmall 14 (combine hml hml')
+      combinesmalli 14 (combine hml hml')
   | MLarray arr ->
-      combinesmall 15 (hash_mllambda_array gn n env 1 arr)
+      combinesmalli 15 (hash_mllambda_array gn n env Int32.one arr)
   | MLisaccu (s, ind, c) ->
-      combinesmall 16 (combine (String.hash s) (combine (ind_hash ind) (hash_mllambda gn n env c)))
+      combinesmalli 16 (combinei (String.hash s) (combine (ind_hash ind) (hash_mllambda gn n env c)))
 
 and hash_mllambda_letrec gn n env init defs =
   let hash_def (_,args,ml) =
     let env = push_lnames n env args in
     let nargs = Array.length args in
-    combine nargs (hash_mllambda gn (n + nargs) env ml)
+    combinei nargs (hash_mllambda gn (n + nargs) env ml)
   in
   Array.fold_left (fun acc t -> combine (hash_def t) acc) init defs
 
@@ -565,7 +569,7 @@ and hash_mllam_branches gn n env init br =
     let hcs = constructor_hash cs in
     let env = opush_lnames n env args in
     let hbody = hash_mllambda gn (n + nargs) env body in
-    combine3 nargs hcs hbody
+    combine3 (Int32.of_int nargs) hcs hbody
   in
   let hash_branch acc (ptl,body) =
     List.fold_left (fun acc t -> combine (hash_cargs t body) acc) acc ptl
@@ -692,32 +696,32 @@ let hash_global g =
       let nlns = Array.length lns in
       let nmls = Array.length mls in
       let env = push_lnames 0 LNmap.empty lns in
-      let hmls = hash_mllambda_array gn nlns env (combine nlns nmls) mls in
-      combinesmall 1 hmls
+      let hmls = hash_mllambda_array gn nlns env (combineii nlns nmls) mls in
+      combinesmalli 1 hmls
   | Gtblfixtype (gn,lns,mls) ->
       let nlns = Array.length lns in
       let nmls = Array.length mls in
       let env = push_lnames 0 LNmap.empty lns in
-      let hmls = hash_mllambda_array gn nlns env (combine nlns nmls) mls in
-      combinesmall 2 hmls
+      let hmls = hash_mllambda_array gn nlns env (combineii nlns nmls) mls in
+      combinesmalli 2 hmls
   | Glet (gn, def) ->
-      combinesmall 3 (hash_mllambda gn 0 LNmap.empty def)
+      combinesmalli 3 (hash_mllambda gn 0 LNmap.empty def)
   | Gletcase (gn,lns,annot,c,accu,br) ->
       let nlns = Array.length lns in
       let env = push_lnames 0 LNmap.empty lns in
       let t = MLmatch (annot,c,accu,br) in
-      combinesmall 4 (combine nlns (hash_mllambda gn nlns env t))
-  | Gopen s -> combinesmall 5 (String.hash s)
+      combinesmalli 4 (combinei nlns (hash_mllambda gn nlns env t))
+  | Gopen s -> combinesmallii 5 (String.hash s)
   | Gtype (ind, arr) ->
-      combinesmall 6 (combine (ind_hash ind) (Array.fold_left combine 0 arr))
-  | Gcomment s -> combinesmall 7 (String.hash s)
+      combinesmalli 6 (combine (ind_hash ind) (Array.fold_left combine_i Int32.zero arr))
+  | Gcomment s -> combinesmallii 7 (String.hash s)
   
 let global_stack = ref ([] : global list)
 
 module HashedTypeGlobal = struct
   type t = global
   let equal = eq_global
-  let hash = hash_global
+  let hash k = Int32.to_int @@ hash_global k
 end
 
 module HashtblGlobal = Hashtbl.Make(HashedTypeGlobal)
@@ -1833,7 +1837,7 @@ let pp_global fmt g =
 	pp_ldecls params pp_array t 
   | Gletcase(gn,params,annot,a,accu,bs) ->
       Format.fprintf fmt "@[(* Hash = %i *)@\nlet rec %a %a =@\n  %a@]@\n@."
-      (hash_global g)
+      (Int32.to_int (hash_global g))
 	pp_gname gn pp_ldecls params 
 	pp_mllam (MLmatch(annot,a,accu,bs))
   | Gcomment s ->

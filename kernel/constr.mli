@@ -492,8 +492,8 @@ val compare_head_gen_leq : instance_compare_fn ->
 
 (** {6 Hashconsing} *)
 
-val hash : constr -> int
-val case_info_hash : case_info -> int
+val hash : constr -> int32
+val case_info_hash : case_info -> int32
 
 (*********************************************************************)
 

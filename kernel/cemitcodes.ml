@@ -43,15 +43,15 @@ let eq_reloc_info r1 r2 = match r1, r2 with
 let hash_reloc_info r =
   let open Hashset.Combine in
   match r with
-  | Reloc_annot sw -> combinesmall 1 (hash_annot_switch sw)
-  | Reloc_const c -> combinesmall 2 (hash_structured_constant c)
-  | Reloc_getglobal c -> combinesmall 3 (Constant.hash c)
-  | Reloc_proj_name p -> combinesmall 4 (Projection.Repr.hash p)
+  | Reloc_annot sw -> combinesmalli 1 (hash_annot_switch sw)
+  | Reloc_const c -> combinesmalli 2 (hash_structured_constant c)
+  | Reloc_getglobal c -> combinesmalli 3 (Constant.hash c)
+  | Reloc_proj_name p -> combinesmalli 4 (Projection.Repr.hash p)
 
 module RelocTable = Hashtbl.Make(struct
   type t = reloc_info
   let equal = eq_reloc_info
-  let hash = hash_reloc_info
+  let hash k = Int32.to_int @@ hash_reloc_info k
 end)
 
 (** We use arrays for on-disk representation. On 32-bit machines, this means we

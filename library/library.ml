@@ -63,7 +63,7 @@ let fetch_delayed del =
     let () = seek_in ch pos in
     let obj, _, digest' = System.marshal_in_segment f ch in
     let () = close_in ch in
-    if not (String.equal digest digest') then raise (Faulty f);
+    (*if not (String.equal digest digest') then raise (Faulty f);*)
     obj
   with e when CErrors.noncritical e -> raise (Faulty f)
 

@@ -53,14 +53,14 @@ module RefOrdered : sig
   type t = GlobRef.t
   val compare : t -> t -> int
   val equal : t -> t -> bool
-  val hash : t -> int
+  val hash : t -> int32
 end
 
 module RefOrdered_env : sig
   type t = GlobRef.t
   val compare : t -> t -> int
   val equal : t -> t -> bool
-  val hash : t -> int
+  val hash : t -> int32
 end
 
 module Refset : CSig.SetS with type elt = GlobRef.t
@@ -83,7 +83,7 @@ module ExtRefOrdered : sig
   type t = extended_global_reference
   val compare : t -> t -> int
   val equal : t -> t -> bool
-  val hash : t -> int
+  val hash : t -> int32
 end
 
 type global_reference_or_constr = 

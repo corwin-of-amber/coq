@@ -178,7 +178,7 @@ let input_binary_int f ch =
   | Failure s -> error_corrupted f s
 let output_binary_int ch x = output_binary_int ch x; flush ch
 
-let marshal_out ch v = Marshal.to_channel ch v []; flush ch
+let marshal_out ch v = Marshal.to_channel ch v [(*Marshal.Compat_32*)]; flush ch
 let marshal_in filename ch =
   try Marshal.from_channel ch
   with

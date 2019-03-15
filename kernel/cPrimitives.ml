@@ -37,32 +37,32 @@ type t =
   | Int31compare
 
 let hash = function
-  | Int31head0 -> 1
-  | Int31tail0 -> 2
-  | Int31add -> 3
-  | Int31sub -> 4
-  | Int31mul -> 5
-  | Int31div -> 6
-  | Int31mod -> 7
+  | Int31head0 -> Int32.of_int 1
+  | Int31tail0 -> Int32.of_int 2
+  | Int31add -> Int32.of_int 3
+  | Int31sub -> Int32.of_int 4
+  | Int31mul -> Int32.of_int 5
+  | Int31div -> Int32.of_int 6
+  | Int31mod -> Int32.of_int 7
 (*
-  | Int31lsr -> 8
-  | Int31lsl -> 9
+  | Int31lsr -> Int32.of_int 8
+  | Int31lsl -> Int32.of_int 9
  *)
-  | Int31land -> 10
-  | Int31lor -> 11
-  | Int31lxor -> 12
-  | Int31addc -> 13
-  | Int31subc -> 14
-  | Int31addcarryc -> 15
-  | Int31subcarryc -> 16
-  | Int31mulc -> 17
-  | Int31diveucl -> 18
-  | Int31div21 -> 19
-  | Int31addmuldiv -> 20
-  | Int31eq -> 21
-  | Int31lt -> 22
-  | Int31le -> 23
-  | Int31compare -> 24
+  | Int31land -> Int32.of_int 10
+  | Int31lor -> Int32.of_int 11
+  | Int31lxor -> Int32.of_int 12
+  | Int31addc -> Int32.of_int 13
+  | Int31subc -> Int32.of_int 14
+  | Int31addcarryc -> Int32.of_int 15
+  | Int31subcarryc -> Int32.of_int 16
+  | Int31mulc -> Int32.of_int 17
+  | Int31diveucl -> Int32.of_int 18
+  | Int31div21 -> Int32.of_int 19
+  | Int31addmuldiv -> Int32.of_int 20
+  | Int31eq -> Int32.of_int 21
+  | Int31lt -> Int32.of_int 22
+  | Int31le -> Int32.of_int 23
+  | Int31compare -> Int32.of_int 24
 
 let to_string = function
   | Int31head0 -> "head0"

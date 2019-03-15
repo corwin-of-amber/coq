@@ -54,10 +54,10 @@ struct
   | ConstructRef c1, ConstructRef c2 -> eq_syntactic_constructor c1 c2
   | _ -> false
   open Hashset.Combine
-  let hash = function
-  | ConstRef c -> combinesmall 1 (Constant.SyntacticOrd.hash c)
-  | IndRef i -> combinesmall 2 (ind_syntactic_hash i)
-  | ConstructRef c -> combinesmall 3 (constructor_syntactic_hash c)
+  let hash k = Int32.to_int @@ match k with
+  | ConstRef c -> combinesmalli 1 (Constant.SyntacticOrd.hash c)
+  | IndRef i -> combinesmalli 2 (ind_syntactic_hash i)
+  | ConstructRef c -> combinesmalli 3 (constructor_syntactic_hash c)
 end
 
 module RefTable = Hashtbl.Make(RefHash)

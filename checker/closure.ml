@@ -148,10 +148,10 @@ struct
 
   open Hashset.Combine
 
-  let hash = function
-  | ConstKey (c,u) -> combinesmall 1 (Constant.UserOrd.hash c)
-  | VarKey id -> combinesmall 2 (Id.hash id)
-  | RelKey i -> combinesmall 3 (Int.hash i)
+  let hash k = Int32.to_int @@ match k with
+  | ConstKey (c,u) -> combinesmalli 1 (Constant.UserOrd.hash c)
+  | VarKey id -> combinesmalli 2 (Id.hash id)
+  | RelKey i -> combinesmallii 3 (Int.hash i)
 end
 
 module KeyTable = Hashtbl.Make(KeyHash)

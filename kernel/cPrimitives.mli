@@ -36,6 +36,6 @@ type t =
   | Int31le
   | Int31compare
 
-val hash : t -> int
+val hash : t -> int32
 
 val to_string : t -> string

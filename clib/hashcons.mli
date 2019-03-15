@@ -40,7 +40,7 @@ module type HashconsedType =
     (** A comparison function. It is allowed to use physical equality
         on the sub-terms hashconsed by the [hashcons] function, but it should be
         insensible to shallow copy of the compared object. *)
-    val hash : t -> int
+    val hash : t -> int32
     (** A hash function passed to the underlying hashtable structure. [hash]
         should be compatible with [eq], i.e. if [eq x y = true] then
         [hash x = hash y]. *)
@@ -79,7 +79,7 @@ val recursive_hcons : (('t -> 't) * 'u -> 'tab) -> ('tab -> 't -> 't) -> ('u -> 
 
 (** {6 Hashconsing of usual structures} *)
 
-module type HashedType = sig type t val hash : t -> int end
+module type HashedType = sig type t val hash : t -> int32 end
 
 module Hstring : (S with type t = string and type u = unit)
 (** Hashconsing of strings.  *)

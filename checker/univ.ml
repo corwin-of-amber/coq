@@ -71,10 +71,10 @@ struct
   open Hashset.Combine
 
   let hash = function
-    | Prop -> combinesmall 1 0
-    | Set -> combinesmall 1 1
-    | Var n -> combinesmall 2 n
-    | Level (n, d) -> combinesmall 3 (combine n (Names.DirPath.hash d))
+    | Prop -> combinesmallii 1 0
+    | Set -> combinesmallii 1 1
+    | Var n -> combinesmallii 2 n
+    | Level (n, d) -> combinesmalli 3 (combinei n (Names.DirPath.hash d))
 end
 
 module Level = struct
@@ -89,11 +89,11 @@ module Level = struct
 
   (** Embed levels with their hash value *)
   type t = { 
-    hash : int;
+    hash : int32;
     data : RawLevel.t }
 
   let equal x y = 
-    x == y || Int.equal x.hash y.hash && RawLevel.equal x.data y.data
+    x == y || Int32.equal x.hash y.hash && RawLevel.equal x.data y.data
 
   let hash x = x.hash
 
@@ -123,7 +123,7 @@ module Level = struct
   let compare u v =
     if u == v then 0
     else
-      let c = Int.compare (hash u) (hash v) in
+      let c = Int32.compare (hash u) (hash v) in
 	if c == 0 then RawLevel.compare (data u) (data v)
 	else c
 	    

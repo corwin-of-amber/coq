@@ -50,9 +50,15 @@ end
 module Make (E : EqType) : S with type elt = E.t
 
 module Combine : sig
-  val combine : int -> int -> int
-  val combinesmall : int -> int -> int
-  val combine3 : int -> int -> int -> int
-  val combine4 : int -> int -> int -> int -> int
-  val combine5 : int -> int -> int -> int -> int -> int
+  val combine : int32 -> int32 -> int32
+  val combinei : int -> int32 -> int32
+  val combineii : int -> int -> int32
+  val combine_i : int32 -> int -> int32
+  val combinesmall : int32 -> int32 -> int32
+  val combinesmalli : int -> int32 -> int32
+  val combinesmallii : int -> int -> int32
+
+  val combine3 : int32 -> int32 -> int32 -> int32
+  val combine4 : int32 -> int32 -> int32 -> int32 -> int32
+  val combine5 : int32 -> int32 -> int32 -> int32 -> int32 -> int32
 end

@@ -25,7 +25,7 @@ val type1  : t
 
 val equal : t -> t -> bool
 val compare : t -> t -> int
-val hash : t -> int
+val hash : t -> Hashval.t
 
 val is_sprop : t -> bool
 val is_set : t -> bool

@@ -244,10 +244,10 @@ struct
   open Hashset.Combine
   type t = table_key
   let equal = Names.eq_table_key eq_pconstant_key
-  let hash = function
-  | ConstKey (c, _) -> combinesmall 1 (Constant.UserOrd.hash c)
-  | VarKey id -> combinesmall 2 (Id.hash id)
-  | RelKey i -> combinesmall 3 (Int.hash i)
+  let hash k = Hashval.to_int @@ match k with
+  | ConstKey (c, _) -> combinesmalli 1 (Constant.UserOrd.hash c)
+  | VarKey id -> combinesmalli 2 (Id.hash id)
+  | RelKey i -> combinesmallii 3 (Int.hash i)
 end
 
 module KeyTable = Hashtbl.Make(IdKeyHash)

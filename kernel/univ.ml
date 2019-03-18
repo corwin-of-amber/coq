@@ -117,7 +117,7 @@ struct
     | Prop -> combinesmallii 1 1
     | Set -> combinesmallii 1 2
     | Var n -> combinesmallii 2 n
-    | Level (d, n) -> combinesmalli 3 (combine n (Names.DirPath.hash d))
+    | Level (d, n) -> combinesmalli 3 (combinei n (Names.DirPath.hash d))
 
 end
 
@@ -419,7 +419,7 @@ struct
   let cons x l = x :: l
 
   let rec hash = function
-  | [] -> Hashval.zero
+  | [] -> Hashval._0
   | e :: l -> Hashset.Combine.combinesmall (Expr.ExprHash.hash e) (hash l)
 
   let equal x y = x == y || List.equal Expr.equal x y
@@ -846,14 +846,14 @@ struct
 	   in aux 0)
 	
     let hash a = 
-      let accu = ref Hashval.zero in
+      let accu = ref Hashval._0 in
 	for i = 0 to Array.length a - 1 do
 	  let l = Array.unsafe_get a i in
 	  let h = Level.hash l in
 	    accu := Hashset.Combine.combine !accu h;
 	done;
 	(* [h] must be positive. *)
-    let h = Hashval.(!accu land (of_int 0x3FFFFFFF)) in
+    let h = Hashval.force_nonneg !accu in
 	  h
   end
 

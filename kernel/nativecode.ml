@@ -94,22 +94,22 @@ let dummy_gname =
 
 open Hashset.Combine
 
-let option_hash hf z = Option.map hf z |> Option.default Hashval.zero
+let option_hash hf z = Option.map hf z |> Option.default Hashval._0
 
 let gname_hash gn = match gn with
 | Gind (s, ind) ->
    combinesmalli 1 (combinei (String.hash s) (ind_hash ind))
 | Gconstant (s, c) ->
-   combinesmalli 2 (combine (String.hash s) (Constant.hash c))
-| Gcase (l, i) -> combinesmalli 3 (combine_i (Option.hash Label.hash l) (Int.hash i))
-| Gpred (l, i) -> combinesmalli 4 (combine_i (Option.hash Label.hash l) (Int.hash i))
-| Gfixtype (l, i) -> combinesmalli 5 (combine_i (Option.hash Label.hash l) (Int.hash i))
-| Gnorm (l, i) -> combinesmalli 6 (combine_i (Option.hash Label.hash l) (Int.hash i))
-| Gnormtbl (l, i) -> combinesmalli 7 (combine_i (Option.hash Label.hash l) (Int.hash i))
-| Ginternal s -> combinesmalli 8 (String.hash s)
-| Grel i -> combinesmalli 9 (Int.hash i)
+   combinesmalli 2 (combinei (String.hash s) (Constant.hash c))
+| Gcase (l, i) -> combinesmalli 3 (combine_i (option_hash Label.hash l) (Int.hash i))
+| Gpred (l, i) -> combinesmalli 4 (combine_i (option_hash Label.hash l) (Int.hash i))
+| Gfixtype (l, i) -> combinesmalli 5 (combine_i (option_hash Label.hash l) (Int.hash i))
+| Gnorm (l, i) -> combinesmalli 6 (combine_i (option_hash Label.hash l) (Int.hash i))
+| Gnormtbl (l, i) -> combinesmalli 7 (combine_i (option_hash Label.hash l) (Int.hash i))
+| Ginternal s -> combinesmallii 8 (String.hash s)
+| Grel i -> combinesmallii 9 (Int.hash i)
 | Gnamed id -> combinesmalli 10 (Id.hash id)
-| Gproj (s, p, i) -> combinesmalli 11 (combinei (String.hash s) (combine (ind_hash p) i))
+| Gproj (s, p, i) -> combinesmalli 11 (combinei (String.hash s) (combine_i (ind_hash p) i))
 
 let case_ctr = ref (-1)
 
@@ -330,7 +330,7 @@ let primitive_hash = function
   | Mk_const -> Hashval.of_int 4
   | Mk_sw -> Hashval.of_int 5
   | Mk_fix (r, i) ->
-     let h = Array.fold_left (fun h i -> combine_i h (Int.hash i)) Hashval.zero r in
+     let h = Array.fold_left (fun h i -> combine_i h (Int.hash i)) Hashval._0 r in
      combinesmalli 6 (combine_i h (Int.hash i))
   | Mk_cofix i ->
      combinesmallii 7 (Int.hash i)
@@ -492,7 +492,7 @@ and eq_mllam_branches gn1 gn2 n env1 env2 br1 br2 =
 let rec hash_mllambda gn n (env : int LNmap.t) t =
   match t with
   | MLlocal ln -> combinesmallii 1 (LNmap.find ln env)
-  | MLglobal gn' -> combinesmalli 2 (if eq_gname gn gn' then Hashval.zero else gname_hash gn')
+  | MLglobal gn' -> combinesmalli 2 (if eq_gname gn gn' then Hashval._0 else gname_hash gn')
   | MLprimitive prim -> combinesmalli 3 (primitive_hash prim)
   | MLlam (lns, ml) ->
       let env = push_lnames n env lns in
@@ -537,7 +537,7 @@ let rec hash_mllambda gn n (env : int LNmap.t) t =
       let hml' = hash_mllambda gn n env ml' in
       combinesmalli 14 (combine hml hml')
   | MLarray arr ->
-      combinesmalli 15 (hash_mllambda_array gn n env Hashval.one arr)
+      combinesmalli 15 (hash_mllambda_array gn n env Hashval._1 arr)
   | MLisaccu (s, ind, c) ->
       combinesmalli 16 (combinei (String.hash s) (combine (ind_hash ind) (hash_mllambda gn n env c)))
 
@@ -702,7 +702,7 @@ let hash_global g =
       combinesmalli 4 (combinei nlns (hash_mllambda gn nlns env t))
   | Gopen s -> combinesmallii 5 (String.hash s)
   | Gtype (ind, arr) ->
-      combinesmalli 6 (combine (ind_hash ind) (Array.fold_left combine_i Hashval.zero arr))
+      combinesmalli 6 (combine (ind_hash ind) (Array.fold_left combine_i Hashval._0 arr))
   | Gcomment s -> combinesmallii 7 (String.hash s)
   
 let global_stack = ref ([] : global list)

@@ -130,8 +130,8 @@ let eq_annot_switch asw1 asw2 =
 let hash_annot_switch asw =
   let open Hashset.Combine in
   let h1 = Constr.case_info_hash asw.ci in
-  let h2 = Array.fold_left (fun h (t, i) -> combine3 h (Hashval.of_int t) (Hashval.of_int i)) Hashval.zero asw.rtbl in
-  let h3 = if asw.tailcall then Hashval.one else Hashval.zero in
+  let h2 = Array.fold_left (fun h (t, i) -> combine3 h (Hashval.of_int t) (Hashval.of_int i)) Hashval._0 asw.rtbl in
+  let h3 = if asw.tailcall then Hashval._1 else Hashval._0 in
   combine3 h1 h2 h3
 
 let pp_sort s =

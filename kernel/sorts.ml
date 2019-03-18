@@ -140,8 +140,8 @@ let relevance_of_sort_family = function
   | _ -> Relevant
 
 let relevance_hash = function
-  | Relevant -> 0
-  | Irrelevant -> 1
+  | Relevant -> Hashval._0
+  | Irrelevant -> Hashval._1
 
 let relevance_of_sort = function
   | SProp -> Irrelevant

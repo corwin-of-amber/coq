@@ -70,11 +70,11 @@ let family_equal = (==)
 open Hashset.Combine
 
 let hash = function
-  | Prop -> combinesmall 1 0
-  | Set -> combinesmall 1 1
+  | Prop -> combinesmallii 1 0
+  | Set -> combinesmallii 1 1
   | Type u ->
     let h = Univ.Universe.hash u in
-    combinesmall 2 h
+    combinesmalli 2 h
 
 module List = struct
   let mem = List.memq

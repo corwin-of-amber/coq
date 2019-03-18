@@ -32,23 +32,23 @@ module KeyOrdered = struct
 
   let hash gr =
     match gr with
-    | KGlob gr -> 9 + GlobRef.Ordered.hash gr
-    | KLam -> 0
-    | KLet -> 1
-    | KProd -> 2
-    | KSort -> 3
-    | KCase -> 4
-    | KFix -> 5
-    | KCoFix -> 6
-    | KRel -> 7
-    | KInt -> 8
+    | KGlob gr -> Hashset.Combine.combinesmalli 9 (GlobRef.Ordered.hash gr)
+    | KLam -> Int32.of_int 0
+    | KLet -> Int32.of_int 1
+    | KProd -> Int32.of_int 2
+    | KSort -> Int32.of_int 3
+    | KCase -> Int32.of_int 4
+    | KFix -> Int32.of_int 5
+    | KCoFix -> Int32.of_int 6
+    | KRel -> Int32.of_int 7
+    | KInt -> Int32.of_int 8
 
   let compare gr1 gr2 =
     match gr1, gr2 with
     | KGlob gr1, KGlob gr2 -> GlobRef.Ordered.compare gr1 gr2
     | _, KGlob _ -> -1
     | KGlob _, _ -> 1
-    | k, k' -> Int.compare (hash k) (hash k')
+    | k, k' -> Int32.compare (hash k) (hash k')
     
   let equal k1 k2 =
     match k1, k2 with

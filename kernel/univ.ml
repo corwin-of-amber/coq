@@ -44,7 +44,7 @@ struct
 
     let equal (d, i) (d', i') = DirPath.equal d d' && Int.equal i i'
 
-    let hash (d,i) = Hashset.Combine.combine i (DirPath.hash d)
+    let hash (d,i) = Hashset.Combine.combinei i (DirPath.hash d)
 
     let compare (d, i) (d', i') =
       let c = Int.compare i i' in
@@ -106,10 +106,10 @@ struct
   open Hashset.Combine
 
   let hash = function
-    | Prop -> combinesmall 1 0
-    | Set -> combinesmall 1 1
-    | Var n -> combinesmall 2 n
-    | Level (d, n) -> combinesmall 3 (combine n (Names.DirPath.hash d))
+    | Prop -> combinesmallii 1 0
+    | Set -> combinesmallii 1 1
+    | Var n -> combinesmallii 2 n
+    | Level (d, n) -> combinesmalli 3 (combinei n (Names.DirPath.hash d))
 
 end
 
@@ -125,11 +125,11 @@ module Level = struct
 
   (** Embed levels with their hash value *)
   type t = { 
-    hash : int;
+    hash : int32;
     data : RawLevel.t }
 
   let equal x y = 
-    x == y || Int.equal x.hash y.hash && RawLevel.equal x.data y.data
+    x == y || Int32.equal x.hash y.hash && RawLevel.equal x.data y.data
 
   let hash x = x.hash
 
@@ -290,7 +290,7 @@ struct
         match l1,l2 with
 	| (b,n), (b',n') -> b == b' && n == n'
 
-      let hash (x, n) = n + Level.hash x
+      let hash (x, n) = Hashset.Combine.combinesmalli n (Level.hash x)
 
     end
 
@@ -397,7 +397,7 @@ struct
   let cons x l = x :: l
 
   let rec hash = function
-  | [] -> 0
+  | [] -> Int32.zero
   | e :: l -> Hashset.Combine.combinesmall (Expr.ExprHash.hash e) (hash l)
 
   let equal x y = x == y || List.equal Expr.equal x y
@@ -605,7 +605,7 @@ module Hconstraint =
       let hashcons hul (l1,k,l2) = (hul l1, k, hul l2)
       let eq (l1,k,l2) (l1',k',l2') =
 	l1 == l1' && k == k' && l2 == l2'
-      let hash = Hashtbl.hash
+      let hash x = Int32.of_int @@ Hashtbl.hash x
     end)
 
 module Hconstraints =
@@ -619,7 +619,7 @@ module Hconstraints =
 	List.for_all2eq (==)
 	  (Constraint.elements s)
 	  (Constraint.elements s')
-      let hash = Hashtbl.hash
+      let hash x = Int32.of_int @@ Hashtbl.hash x
     end)
 
 let hcons_constraint = Hashcons.simple_hcons Hconstraint.generate Hconstraint.hcons Level.hcons
@@ -776,7 +776,7 @@ module Instance : sig
     val length : t -> int
 
     val hcons : t -> t
-    val hash : t -> int
+    val hash : t -> int32
 
     val share : t -> t * int
 
@@ -816,14 +816,14 @@ struct
 	   in aux 0)
 	
     let hash a = 
-      let accu = ref 0 in
+      let accu = ref Int32.zero in
 	for i = 0 to Array.length a - 1 do
 	  let l = Array.unsafe_get a i in
 	  let h = Level.hash l in
 	    accu := Hashset.Combine.combine !accu h;
 	done;
 	(* [h] must be positive. *)
-	let h = !accu land 0x3FFFFFFF in
+    let h = Int32.logand !accu (Int32.of_int 0x3FFFFFFF) in
 	  h
   end
 
@@ -833,7 +833,7 @@ struct
     
   let hash = HInstancestruct.hash
     
-  let share a = (hcons a, hash a)
+  let share a = (hcons a, Int32.to_int (hash a))
 	      
   let empty = hcons [||]
 
@@ -1188,7 +1188,7 @@ module Huniverse_set =
 	LSet.fold (fun x -> LSet.add (huc x)) s LSet.empty
       let eq s s' =
 	LSet.equal s s'
-      let hash = Hashtbl.hash
+      let hash x = Int32.of_int (Hashtbl.hash x)
     end)
 
 let hcons_universe_set = 

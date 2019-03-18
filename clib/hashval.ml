@@ -1,12 +1,11 @@
 type t = Int32.t
 
-let zero = Int32.zero
-let one = Int32.one
-let two = Int32.of_int 2
-let three = Int32.of_int 3
-let four = Int32.of_int 4
+let _0 = Int32.zero
+let _1 = Int32.one
+let minus_1 = Int32.minus_one
 
-let minus_one = Int32.minus_one
+let is_neg i = Int32.compare i _0 < 0
+let force_nonneg i = Int32.logand i (Int32.of_int 0x3FFFFFFF)
 
 let equal = Int32.equal
 let compare = Int32.compare

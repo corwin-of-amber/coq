@@ -106,7 +106,7 @@ struct
     | _ -> false
 
   let hash = function
-    | Anonymous -> Hashval.zero
+    | Anonymous -> Hashval._0
     | Name id -> Id.hash id
 
   let print = function
@@ -168,7 +168,7 @@ struct
     let accu = Hashset.Combine.combine (Id.hash id) accu in
     hash accu dp
 
-  let hash dp = hash Hashval.zero dp
+  let hash dp = hash Hashval._0 dp
 
   let make x = x
   let repr x = x
@@ -373,7 +373,7 @@ module KerName = struct
   type kernel_name = t
 
   let make modpath knlabel =
-    { modpath; knlabel; refhash = Hashval.minus_one; }
+    { modpath; knlabel; refhash = Hashval.minus_1; }
   let repr kn = (kn.modpath, kn.knlabel)
 
   let make2 = make
@@ -404,7 +404,7 @@ module KerName = struct
   let equal kn1 kn2 =
     let h1 = kn1.refhash in
     let h2 = kn2.refhash in
-    if Hashval.(compare zero h1 <= 0 && compare zero h2 <= 0 && not (equal h1 h2)) then false
+    if Hashval.(not (is_neg h1) && not (is_neg h2) && not (equal h1 h2)) then false
     else
       Label.equal kn1.knlabel kn2.knlabel &&
       ModPath.equal kn1.modpath kn2.modpath
@@ -413,11 +413,11 @@ module KerName = struct
 
   let hash kn =
     let h = kn.refhash in
-    if Hashval.compare Hashval.zero h > 0 then
+    if Hashval.is_neg h then
       let { modpath = mp; knlabel = lbl; _ } = kn in
       let h = combine (ModPath.hash mp) (Label.hash lbl) in
       (* Ensure positivity on all platforms. *)
-      let h = Hashval.(h land (of_int 0x3FFFFFFF)) in
+      let h = Hashval.force_nonneg h in
       let () = kn.refhash <- h in
       h
     else h

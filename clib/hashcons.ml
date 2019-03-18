@@ -121,7 +121,7 @@ module Hlist (D:HashedType) =
       | x :: l ->
         let accu = Hashset.Combine.combine (D.hash x) accu in
         hash accu l
-      let hash l = hash Hashval.zero l
+      let hash l = hash Hashval._0 l
     end)
 
 (* string *)

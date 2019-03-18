@@ -1225,7 +1225,7 @@ let hashcons (sh_sort,sh_ci,sh_construct,sh_ind,sh_con,sh_na,sh_id) =
 	let tl,htl = hash_term_array tl in
         let () = Array.iteri (fun i x -> Array.unsafe_set lna i (sh_na x)) lna in
         let fold accu na = combine (hash_annot Name.hash na) accu in
-        let hna = Array.fold_left fold 0 lna in
+        let hna = Array.fold_left fold Hashval._0 lna in
         let h = combine3 hna hbl htl in
         (Fix (ln,(lna,tl,bl)), combinesmalli 13 h)
       | CoFix(ln,(lna,tl,bl)) ->
@@ -1233,7 +1233,7 @@ let hashcons (sh_sort,sh_ci,sh_construct,sh_ind,sh_con,sh_na,sh_id) =
 	let tl,htl = hash_term_array tl in
         let () = Array.iteri (fun i x -> Array.unsafe_set lna i (sh_na x)) lna in
         let fold accu na = combine (hash_annot Name.hash na) accu in
-        let hna = Array.fold_left fold Hashval.zero lna in
+        let hna = Array.fold_left fold Hashval._0 lna in
         let h = combine3 hna hbl htl in
         (CoFix (ln,(lna,tl,bl)), combinesmalli 14 h)
       | Meta n ->
@@ -1251,20 +1251,20 @@ let hashcons (sh_sort,sh_ci,sh_construct,sh_ind,sh_con,sh_na,sh_id) =
   and sh_rec t =
     let (y, h) = hash_term t in
     (* [h] must be positive. *)
-    let h = Hashval.(h land (of_int 0x3FFFFFFF)) in
+    let h = Hashval.force_nonneg h in
     (HashsetTerm.repr (Hashval.to_int h) y term_table, h)
 
   (* Note : During hash-cons of arrays, we modify them *in place* *)
 
   and hash_term_array t =
-    let accu = ref Hashval.zero in
+    let accu = ref Hashval._0 in
     for i = 0 to Array.length t - 1 do
       let x, h = sh_rec (Array.unsafe_get t i) in
       accu := combine !accu h;
       Array.unsafe_set t i x
     done;
     (* [h] must be positive. *)
-    let h = Hashval.(!accu land (of_int 0x3FFFFFFF)) in
+    let h = Hashval.force_nonneg !accu in
     (HashsetTermArray.repr (Hashval.to_int h) t term_array_table, h)
 
   in
@@ -1313,7 +1313,7 @@ let rec hash t =
     | Int i -> combinesmallii 18 (Uint63.hash i)
 
 and hash_term_array t =
-  Array.fold_left (fun acc t -> combine (hash t) acc) Hashval.zero t
+  Array.fold_left (fun acc t -> combine (hash t) acc) Hashval._0 t
 
 module CaseinfoHash =
 struct
@@ -1332,7 +1332,7 @@ struct
     Array.equal Int.equal ci.ci_cstr_nargs ci'.ci_cstr_nargs && (* we use [Array.equal] on purpose *)
     pp_info_equal ci.ci_pp_info ci'.ci_pp_info  (* we use (=) on purpose *)
   open Hashset.Combine
-  let hash_bool b = if b then Hashval.zero else Hashval.one
+  let hash_bool b = if b then Hashval._0 else Hashval._1
   let hash_bool_list = List.fold_left (fun n b -> combine n (hash_bool b))
   let hash_pp_info info =
     let h1 = match info.style with
@@ -1341,14 +1341,14 @@ struct
     | LetPatternStyle -> 2
     | MatchStyle -> 3
     | RegularStyle -> 4 in
-    let h2 = hash_bool_list Hashval.zero info.ind_tags in
-    let h3 = Array.fold_left hash_bool_list Hashval.zero info.cstr_tags in
+    let h2 = hash_bool_list Hashval._0 info.ind_tags in
+    let h3 = Array.fold_left hash_bool_list Hashval._0 info.cstr_tags in
     combine3 (Hashval.of_int h1) h2 h3
   let hash ci =
     let h1 = ind_hash ci.ci_ind in
     let h2 = Hashval.of_int @@ Int.hash ci.ci_npar in
-    let h3 = Array.fold_left combine_i Hashval.zero ci.ci_cstr_ndecls in
-    let h4 = Array.fold_left combine_i Hashval.zero ci.ci_cstr_nargs in
+    let h3 = Array.fold_left combine_i Hashval._0 ci.ci_cstr_ndecls in
+    let h4 = Array.fold_left combine_i Hashval._0 ci.ci_cstr_nargs in
     let h5 = hash_pp_info ci.ci_pp_info in
     combinesmall (Sorts.relevance_hash ci.ci_relevance) (combine5 h1 h2 h3 h4 h5)
 end

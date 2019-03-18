@@ -231,23 +231,9 @@ module Combine = struct
 
     (* the ugly *)
     open Hashval
-    let cap x = x land (of_int 0x3FFFFFFF)
     let combinei x y = combine (of_int x) y
     let combineii x y = combine (of_int x) (of_int y)
     let combine_i x y = combine x (of_int y)
     let combinesmalli x y = combinesmall (of_int x) y
     let combinesmallii x y = combinesmall (of_int x) (of_int y)
-
-(*
-
-    let combine x y     = Int32.add (Int32.mul x alpha) y |> cap
-    let combinei x y = combine (Hashval.of_int x) y
-    let combineii x y = combine (Hashval.of_int x) (Hashval.of_int y)
-    let combine_i x y = combine x (Hashval.of_int y)
-    let combine3 x y z   = combine x (combine y z)
-    let combine4 x y z t = combine x (combine3 y z t)
-    let combine5 x y z t u = combine x (combine4 y z t u)
-    let combinesmall x y = Int32.add (Int32.mul beta x) y |> cap
-    let combinesmalli x y = combinesmall (Hashval.of_int x) y
-    let combinesmallii x y = combinesmall (Hashval.of_int x) (Hashval.of_int y) *)
 end

@@ -1,15 +1,14 @@
 (* Hash type *)
 type t
 
-val zero : t
-val one : t
-val two : t
-val three : t
-val four : t
-
-val minus_one : t
+val _0 : t
+val _1 : t
+val minus_1 : t
 
 val succ : t -> t
+
+val is_neg : t -> bool
+val force_nonneg : t -> t
 
 val equal : t -> t -> bool
 val compare : t -> t -> int

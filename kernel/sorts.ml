@@ -94,12 +94,12 @@ let family_equal = (==)
 open Hashset.Combine
 
 let hash = function
-  | SProp -> combinesmall 1 0
-  | Prop -> combinesmall 1 1
-  | Set -> combinesmall 1 2
+  | SProp -> combinesmallii 1 0
+  | Prop -> combinesmallii 1 1
+  | Set -> combinesmallii 1 2
   | Type u ->
     let h = Univ.Universe.hash u in
-    combinesmall 2 h
+    combinesmalli 2 h
 
 module List = struct
   let mem = List.memq

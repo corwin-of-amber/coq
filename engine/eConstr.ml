@@ -330,6 +330,10 @@ let iter sigma f c =
   let f c = f (of_constr c) in
   Constr.iter f (unsafe_to_constr (whd_evar sigma c))
 
+let iter'0 sigma f c =
+  let f c = f (of_constr c) in
+  Constr.iter'0 f (unsafe_to_constr (whd_evar sigma c))
+
 let iter_with_full_binders sigma g f n c =
   let open Context.Rel.Declaration in
   match kind sigma c with
@@ -359,6 +363,10 @@ let iter_with_binders sigma g f n c =
 let fold sigma f acc c =
   let f acc c = f acc (of_constr c) in
   Constr.fold f acc (unsafe_to_constr (whd_evar sigma c))
+
+let fold'0 sigma f acc c =
+  let f acc c = f acc (of_constr c) in
+  Constr.fold'0 f acc (unsafe_to_constr (whd_evar sigma c))
 
 let compare_gen k eq_inst eq_sort eq_constr nargs c1 c2 =
   (c1 == c2) || Constr.compare_head_gen_with k k eq_inst eq_sort eq_constr nargs c1 c2
@@ -528,13 +536,14 @@ let eq_constr_universes_proj env sigma m n =
 
 let universes_of_constr sigma c =
   let open Univ in
+  let open Trampoline in
   let rec aux s c =
     match kind sigma c with
-    | Const (c, u) ->
+    | Const (c, u) -> ret @@
           LSet.fold LSet.add (Instance.levels (EInstance.kind sigma u)) s
-    | Ind ((mind,_), u) | Construct (((mind,_),_), u) ->
+    | Ind ((mind,_), u) | Construct (((mind,_),_), u) -> ret @@
           LSet.fold LSet.add (Instance.levels (EInstance.kind sigma u)) s
-    | Sort u ->
+    | Sort u -> ret @@
        let sort = ESorts.kind sigma u in
        if Sorts.is_small sort then s
        else
@@ -542,9 +551,9 @@ let universes_of_constr sigma c =
          LSet.fold LSet.add (Universe.levels u) s
     | Evar (k, args) ->
        let concl = Evd.evar_concl (Evd.find sigma k) in
-       fold sigma aux (aux s concl) c
-    | _ -> fold sigma aux s c
-  in aux LSet.empty c
+       fold'0 sigma aux (unlift2 aux s concl) c
+    | _ -> fold'0 sigma aux s c
+  in trampoline @@ aux LSet.empty c
 
 open Context
 open Environ

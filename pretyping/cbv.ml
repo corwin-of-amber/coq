@@ -316,6 +316,9 @@ and apply_env env t =
  * stack. *)
 
 let rec norm_head info env t stack =
+  Trampoline.trampoline @@ norm_head'0 info env t stack
+
+and norm_head'1 info env t stack =
   (* no reduction under binders *)
   match kind t with
   (* stack grows (remove casts) *)
@@ -384,6 +387,16 @@ let rec norm_head info env t stack =
   | (Sort _ | Meta _ | Ind _ | Int _) -> (VAL(0, t), stack)
   | Prod _ -> (CBN(t,env), stack)
 
+and norm_head'0 info env t stack =
+  let open Trampoline in
+  match kind t with
+  | App (head,args) when Array.length args = 1 -> (* Applied terms are normalized immediately;
+                        they could be computed when getting out of the stack *)
+      let arg0 = args.(0) in
+      cbv_stack_term'0 info TOP env arg0 (fun narg0 ->
+        norm_head'0 info env head (stack_app [|narg0|] stack))
+  | _ -> ret @@ norm_head'1 info env t stack
+
 and norm_head_ref k info env stack normt t =
   if red_set_ref info.reds normt then
     match cbv_value_cache info normt with
@@ -408,6 +421,11 @@ and norm_head_ref k info env stack normt t =
  *)
 and cbv_stack_term info stack env t =
   cbv_stack_value info env (norm_head info env t stack)
+
+and cbv_stack_term'0 info stack env t cont =
+  let open Trampoline in
+  seq (fun () -> norm_head'0 info env t stack) (fun v ->
+        cont @@ cbv_stack_value info env v)
 
 and cbv_stack_value info env = function
   (* a lambda meets an application -> BETA *)
@@ -534,21 +552,21 @@ and cbv_norm_term info env t =
   cbv_norm_value info (cbv_stack_term info TOP env t)
 
 (* reduction of a cbv_value to a constr *)
-and cbv_norm_value info = function (* reduction under binders *)
-  | VAL (n,t) -> lift n t
+and cbv_norm_value_cps info cont = function (* reduction under binders *)
+  | VAL (n,t) -> cont @@ lift n t
   | STACK (0,v,stk) ->
-      apply_stack info (cbv_norm_value info v) stk
+      cont @@ apply_stack info (cbv_norm_value info v) stk
   | STACK (n,v,stk) ->
-      lift n (apply_stack info (cbv_norm_value info v) stk)
+      cont @@ lift n (apply_stack info (cbv_norm_value info v) stk)
   | CBN(t,env) ->
-      Constr.map_with_binders subs_lift (cbv_norm_term info) env t
+      cont @@ Constr.map_with_binders subs_lift (cbv_norm_term info) env t
   | LAM (n,ctxt,b,env) ->
       let nctxt =
         List.map_i (fun i (x,ty) ->
           (x,cbv_norm_term info (subs_liftn i env) ty)) 0 ctxt in
-      Term.compose_lam (List.rev nctxt) (cbv_norm_term info (subs_liftn n env) b)
+      cont @@ Term.compose_lam (List.rev nctxt) (cbv_norm_term info (subs_liftn n env) b)
   | FIXP ((lij,(names,lty,bds)),env,args) ->
-      mkApp
+      cont @@ mkApp
         (mkFix (lij,
                 (names,
                  Array.map (cbv_norm_term info env) lty,
@@ -556,16 +574,21 @@ and cbv_norm_value info = function (* reduction under binders *)
 			      (subs_liftn (Array.length lty) env)) bds)),
          Array.map (cbv_norm_value info) args)
   | COFIXP ((j,(names,lty,bds)),env,args) ->
-      mkApp
+      cont @@ mkApp
         (mkCoFix (j,
                   (names,Array.map (cbv_norm_term info env) lty,
 		   Array.map (cbv_norm_term info
 				(subs_liftn (Array.length lty) env)) bds)),
          Array.map (cbv_norm_value info) args)
   | CONSTR (c,args) ->
-      mkApp(mkConstructU c, Array.map (cbv_norm_value info) args)
+      if (Array.length args = 1) then
+        cbv_norm_value_cps info (fun x -> cont @@ mkApp(mkConstructU c, [|x|])) args.(0)
+      else
+        cont @@ mkApp(mkConstructU c, Array.map (cbv_norm_value info) args)
   | PRIMITIVE(op,c,args) ->
-      mkApp(c,Array.map (cbv_norm_value info) args)
+      cont @@ mkApp(c,Array.map (cbv_norm_value info) args)
+
+and cbv_norm_value info = cbv_norm_value_cps info (fun x -> x)
 
 (* with profiling *)
 let cbv_norm infos constr =

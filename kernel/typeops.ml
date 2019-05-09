@@ -477,6 +477,9 @@ let check_binder_annot s x =
     Ind et Constructsi un jour cela devient des constructions
     arbitraires et non plus des variables *)
 let rec execute env cstr =
+  Trampoline.trampoline @@ execute'0 env cstr
+
+and execute'1 env cstr =
   let open Context.Rel.Declaration in
   match kind cstr with
     (* Atomic terms *)
@@ -590,6 +593,26 @@ let rec execute env cstr =
 
     | Evar _ ->
 	anomaly (Pp.str "the kernel does not support existential variables.")
+
+and execute'0 env cstr =
+  let open Trampoline in
+  let open Context.Rel.Declaration in
+  match kind cstr with
+    | App (f,args) when Array.length args = 1 ->
+      let arg0 = args.(0) in
+      seq (fun () -> execute'0 env arg0) (fun (arg0', arg0t) ->
+        let f', ft =
+          match kind f with
+          | Ind ind when Environ.template_polymorphic_pind ind env ->
+            let args = Array.map (fun t -> lazy t) [|arg0t|] in
+              f, type_of_inductive_knowing_parameters env ind args
+          | _ ->
+            (* No template polymorphism *)
+            execute env f
+        in
+        let cstr = if f == f' && arg0 == arg0' then cstr else mkApp (f',[|arg0'|]) in
+        ret (cstr, type_of_apply env f' ft [|arg0'|] [|arg0t|]))
+    | _ -> ret @@ execute'1 env cstr
 
 and execute_is_type env constr =
   let c, t = execute env constr in

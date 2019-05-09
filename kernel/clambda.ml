@@ -663,6 +663,9 @@ end
 open Renv
 
 let rec lambda_of_constr env c =
+  Trampoline.trampoline @@ lambda_of_constr'0 env c
+
+and lambda_of_constr'1 env c =
   match Constr.kind c with
   | Meta _ -> raise (Invalid_argument "Cbytegen.lambda_of_constr: Meta")
   | Evar (evk, args) ->
@@ -764,6 +767,12 @@ let rec lambda_of_constr env c =
 
   | Int i -> Luint i
 
+and lambda_of_constr'0 env c =
+  let open Trampoline in
+  match Constr.kind c with
+  | App(f, args) -> lambda_of_app'0 env f args
+  | _ -> ret @@ lambda_of_constr'1 env c
+
 and lambda_of_app env f args =
   match Constr.kind f with
   | Const (kn,u as c) ->
@@ -787,6 +796,19 @@ and lambda_of_app env f args =
       let args = lambda_of_args env 0 args in
       mkLapp f args
 
+and lambda_of_app'0 env f args =
+  let open Trampoline in
+  match Constr.kind f with
+  | Construct (c,_) when Array.length args = 1 ->
+      let arg0 = args.(0) in
+      let tag, nparams, arity = Renv.get_construct_info env c in
+      let nargs = Array.length args in
+      if nparams < nargs then (* got all parameters *)
+        seq (fun () -> lambda_of_constr'0 env arg0) (fun arg0' ->
+        ret @@ makeblock tag 0 arity [|arg0'|])
+      else ret @@ makeblock tag (nparams - nargs) arity empty_args
+  | _ ->  ret @@ lambda_of_app env f args
+
 and lambda_of_args env start args =
   let nargs = Array.length args in
   if start < nargs then
@@ -808,7 +830,7 @@ let lambda_of_constr ~optimize genv c =
   let env = Renv.make genv in
   let ids = List.rev_map Context.Rel.Declaration.get_annot (rel_context genv) in
   Renv.push_rels env (Array.of_list ids);
-  let lam = lambda_of_constr env c in
+  let lam = Trampoline.trampoline @@ lambda_of_constr'0 env c in
   let lam = if optimize then optimize_lambda lam else lam in
   if !dump_lambda then
     Feedback.msg_debug (pp_lam lam);

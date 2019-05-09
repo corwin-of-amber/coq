@@ -124,8 +124,8 @@ let has_undefined_evars evd t =
   let rec has_ev t =
     match EConstr.kind evd t with
     | Evar _ -> raise NotInstantiatedEvar
-    | _ -> EConstr.iter evd has_ev t in
-  try let _ = has_ev t in false
+    | _ -> EConstr.iter'0 evd has_ev t in
+  try let _ = Trampoline.trampoline @@ has_ev t in false
   with (Not_found | NotInstantiatedEvar) -> true
 
 let is_ground_term evd t =
@@ -744,14 +744,15 @@ let rec advance sigma evk =
     [nf_evar]. *)
 
 let undefined_evars_of_term evd t =
+  let open Trampoline in
   let rec evrec acc c =
     match EConstr.kind evd c with
-      | Evar (n, l) ->
+      | Evar (n, l) -> ret @@
         let acc = Evar.Set.add n acc in
-	Array.fold_left evrec acc l
-      | _ -> EConstr.fold evd evrec acc c
+        Array.fold_left (unlift2 evrec) acc l
+      | _ -> EConstr.fold'0 evd evrec acc c
   in
-  evrec Evar.Set.empty t
+  trampoline @@ evrec Evar.Set.empty t
 
 let undefined_evars_of_named_context evd nc =
   Context.Named.fold_outside

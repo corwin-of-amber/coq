@@ -460,6 +460,14 @@ let fold f acc c = match kind c with
   | CoFix (_,(_lna,tl,bl)) ->
     Array.fold_left2 (fun acc t b -> f (f acc t) b) acc tl bl
 
+let fold'0 f acc c =
+  let open Trampoline in
+  match kind c with
+  | App (c,l) when Array.length l = 1 ->
+    let c' = unlift2 f acc c in
+    TailCall (fun () -> f c' l.(0))
+  | _ -> ret @@ fold (unlift2 f) acc c
+
 (* [iter f c] iters [f] on the immediate subterms of [c]; it is
    not recursive and the order with which subterms are processed is
    not specified *)
@@ -477,6 +485,12 @@ let iter f c = match kind c with
   | Case (_,p,c,bl) -> f p; f c; Array.iter f bl
   | Fix (_,(_,tl,bl)) -> Array.iter f tl; Array.iter f bl
   | CoFix (_,(_,tl,bl)) -> Array.iter f tl; Array.iter f bl
+
+let iter'0 f c =
+  let open Trampoline in
+  match kind c with
+  | App (c,l) when Array.length l = 1 -> unlift f c; TailCall (fun () -> f l.(0))
+  | _ -> ret @@ iter (unlift f) c
 
 (* [iter_with_binders g f n c] iters [f n] on the immediate
    subterms of [c]; it carries an extra data [n] (typically a lift
@@ -501,6 +515,12 @@ let iter_with_binders g f n c = match kind c with
   | CoFix (_,(_,tl,bl)) ->
       Array.Fun1.iter f n tl;
       Array.Fun1.iter f (iterate g (Array.length tl) n) bl
+
+let iter_with_binders'0 g f n c =
+  let open Trampoline in
+  match kind c with
+  | App (c,l) when Array.length l = 1 -> unlift2 f n c; TailCall (fun () -> f n l.(0))
+  | _ -> ret @@ iter_with_binders g (unlift2 f) n c
 
 (* [fold_constr_with_binders g f n acc c] folds [f n] on the immediate
    subterms of [c] starting from [acc] and proceeding from left to
@@ -666,8 +686,21 @@ let map_gen userview f c = match kind c with
       if tl'==tl && bl'==bl then c
       else mkCoFix (ln,(lna,tl',bl'))
 
+let map_gen'0 userview f c =
+  let open Trampoline in
+  match kind c with
+  | App (b,l) ->
+      let b' = unlift f b in
+      fmap f l (fun l' ->
+      ret @@
+      if b'==b && l'==l then c
+      else mkApp (b', l'))
+  | _ -> ret @@ map_gen userview (unlift f) c
+
 let map_user_view = map_gen true
 let map = map_gen false
+
+let map'0 = map_gen'0 false
 
 (* Like {!map} but with an accumulator. *)
 
@@ -786,16 +819,31 @@ let map_with_binders g f l c0 = match kind c0 with
     let bl' = Array.Fun1.Smart.map f l' bl in
     mkCoFix (ln,(lna,tl',bl'))
 
+let map_with_binders'0 g f l c0 =
+  let open Trampoline in
+  match kind c0 with
+  | App (c, al) when Array.length al = 1 ->
+    let c' = unlift2 f l c in
+    let al0 = al.(0) in
+    seq (fun () -> f l al0) (fun (al0') -> ret @@
+      if c' == c && al0' == al0 then c0
+      else mkApp (c', [|al0'|]))
+  | _ -> ret @@ map_with_binders g (unlift2 f) l c0
+
 (*********************)
 (*      Lifting      *)
 (*********************)
 
 (* The generic lifting function *)
-let rec exliftn el c =
+let rec exliftn'0 el c =
+  let open Trampoline in
   let open Esubst in
   match kind c with
-  | Rel i -> mkRel(reloc_rel i el)
-  | _ -> map_with_binders el_lift exliftn el c
+  | Rel i -> ret @@ mkRel(reloc_rel i el)
+  | _ -> map_with_binders'0 el_lift exliftn'0 el c
+
+let exliftn el c =
+  Trampoline.trampoline @@ exliftn'0 el c
 
 (* Lifting the binding depth across k bindings *)
 
@@ -1172,6 +1220,7 @@ let sh_instance = Univ.Instance.share
    representation for [constr] using [hash_consing_functions] on
    leaves. *)
 let hashcons (sh_sort,sh_ci,sh_construct,sh_ind,sh_con,sh_na,sh_id) =
+  let open Trampoline in
   let rec hash_term t =
     match t with
       | Var i ->
@@ -1248,11 +1297,20 @@ let hashcons (sh_sort,sh_ci,sh_construct,sh_ind,sh_con,sh_na,sh_id) =
         let (h,l) = Uint63.to_int2 i in
         (t, combinesmall 18 (combine h l))
 
-  and sh_rec t =
-    let (y, h) = hash_term t in
-    (* [h] must be positive. *)
-    let h = h land 0x3FFFFFFF in
-    (HashsetTerm.repr h y term_table, h)
+  and hash_term'0 t =
+    match t with
+      | App (c,l) ->
+        let c, hc = sh_rec c in
+        hash_term_array'0 l (fun (l, hl) -> ret @@
+        (App (c,l), combinesmall 7 (combine hl hc)))
+      | _ -> ret @@ hash_term t
+
+  and sh_rec t = trampoline @@ sh_rec'0 t
+
+  and sh_rec'0 t =
+    seq (fun () -> hash_term'0 t) (fun (y, h) ->
+      let h = h land 0x3FFFFFFF in
+      ret (HashsetTerm.repr h y term_table, h) )
 
   (* Note : During hash-cons of arrays, we modify them *in place* *)
 
@@ -1266,6 +1324,16 @@ let hashcons (sh_sort,sh_ci,sh_construct,sh_ind,sh_con,sh_na,sh_id) =
     (* [h] must be positive. *)
     let h = !accu land 0x3FFFFFFF in
     (HashsetTermArray.repr h t term_array_table, h)
+
+  and hash_term_array'0 t cont =
+    if Array.length t = 1 then
+      let t0 = Array.unsafe_get t 0 in
+      seq (fun () -> sh_rec'0 t0) (fun (x, h) ->
+        Array.unsafe_set t 0 x;
+        let h = (combine 0 h) land 0x3FFFFFFF in
+        cont (HashsetTermArray.repr h t term_array_table, h))
+    else
+      cont @@ hash_term_array t
 
   in
   (* Make sure our statically allocated Rels (1 to 16) are considered

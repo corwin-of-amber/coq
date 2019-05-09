@@ -471,11 +471,16 @@ let mark_obligation_evar sigma k evc =
     Evd.set_obligation_evar sigma (fst (destEvar sigma evc))
   | _ -> sigma
 
+
 (* [pretype tycon env sigma lvar lmeta cstr] attempts to type [cstr] *)
 (* in environment [env], with existential variables [sigma] and *)
 (* the type constraint tycon *)
 
 let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) (sigma : evar_map) t =
+  Trampoline.trampoline @@ pretype'0 ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) (sigma : evar_map) t
+
+and pretype'0 ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) (sigma : evar_map) t =
+  let (ret,seq) = Trampoline.(ret,seq) in
   let inh_conv_coerce_to_tycon ?loc = inh_conv_coerce_to_tycon ?loc ~program_mode resolve_tc in
   let pretype_type = pretype_type ~program_mode ~poly k0 resolve_tc in
   let pretype = pretype ~program_mode ~poly k0 resolve_tc in
@@ -484,11 +489,11 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
   match DAst.get t with
   | GRef (ref,u) ->
     let sigma, t_ref = pretype_ref ?loc sigma env ref u in
-    inh_conv_coerce_to_tycon ?loc env sigma t_ref tycon
+    ret @@ inh_conv_coerce_to_tycon ?loc env sigma t_ref tycon
 
   | GVar id ->
     let sigma, t_id = pretype_id (fun e r t -> pretype tycon e r t) k0 loc env sigma id in
-    inh_conv_coerce_to_tycon ?loc env sigma t_id tycon
+    ret @@ inh_conv_coerce_to_tycon ?loc env sigma t_id tycon
 
   | GEvar (id, inst) ->
       (* Ne faudrait-il pas s'assurer que hyps est bien un
@@ -501,7 +506,7 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
       let sigma, args = pretype_instance ~program_mode ~poly k0 resolve_tc env sigma loc hyps evk inst in
       let c = mkEvar (evk, args) in
       let j = Retyping.get_judgment_of !!env sigma c in
-      inh_conv_coerce_to_tycon ?loc env sigma j tycon
+      ret @@ inh_conv_coerce_to_tycon ?loc env sigma j tycon
 
   | GPatVar kind ->
     let sigma, ty =
@@ -510,7 +515,7 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
       | None -> new_type_evar env sigma loc in
     let k = Evar_kinds.MatchingVar kind in
     let sigma, uj_val = new_evar env sigma ~src:(loc,k) ty in
-    sigma, { uj_val; uj_type = ty }
+    ret (sigma, { uj_val; uj_type = ty })
 
   | GHole (k, naming, None) ->
       let open Namegen in
@@ -524,7 +529,7 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
         | None -> new_type_evar env sigma loc in
       let sigma, uj_val = new_evar env sigma ~src:(loc,k) ~naming ty in
       let sigma = if program_mode then mark_obligation_evar sigma k uj_val else sigma in
-      sigma, { uj_val; uj_type = ty }
+      ret (sigma, { uj_val; uj_type = ty })
 
   | GHole (k, _naming, Some arg) ->
       let sigma, ty =
@@ -532,7 +537,7 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
         | Some ty -> sigma, ty
         | None -> new_type_evar env sigma loc in
       let c, sigma = GlobEnv.interp_glob_genarg env poly sigma ty arg in
-      sigma, { uj_val = c; uj_type = ty }
+      ret (sigma, { uj_val = c; uj_type = ty })
 
   | GRec (fixkind,names,bl,lar,vdef) ->
     let hypnaming = if program_mode then ProgramNaming else KeepUserNameAndRenameExistingButSectionNames in
@@ -625,11 +630,11 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
                iraise (e, info));
 	    make_judge (mkCoFix cofix) ftys.(i)
       in
-      inh_conv_coerce_to_tycon ?loc env sigma fixj tycon
+      ret @@ inh_conv_coerce_to_tycon ?loc env sigma fixj tycon
 
   | GSort s ->
     let sigma, j = pretype_sort ?loc sigma s in
-    inh_conv_coerce_to_tycon ?loc env sigma j tycon
+    ret @@ inh_conv_coerce_to_tycon ?loc env sigma j tycon
 
   | GApp (f,args) ->
     let sigma, fj = pretype empty_tycon env sigma f in
@@ -667,7 +672,7 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
       | _ -> fun _ f v -> applist (f, [v])
     in
     let rec apply_rec env sigma n resj candargs = function
-      | [] -> sigma, resj
+      | [] -> ret (sigma, resj)
       | c::rest ->
         let argloc = loc_of_glob_constr c in
         let sigma, resj = Coercion.inh_app_fun ~program_mode resolve_tc !!env sigma resj in
@@ -675,7 +680,8 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
         match EConstr.kind sigma resty with
         | Prod (na,c1,c2) ->
           let tycon = Some c1 in
-          let sigma, hj = pretype tycon env sigma c in
+          seq (fun () -> pretype'0 ~program_mode ~poly k0 resolve_tc tycon env sigma c)
+          (fun (sigma, hj) ->
           let sigma, candargs, ujval =
             match candargs with
             | [] -> sigma, [], j_val hj
@@ -690,13 +696,14 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
             let sigma, ujval = adjust_evar_source sigma na.binder_name ujval in
             let value, typ = app_f n (j_val resj) ujval, subst1 ujval c2 in
 	    let j = { uj_val = value; uj_type = typ } in
-            apply_rec env sigma (n+1) j candargs rest
+            TailCall (fun () -> apply_rec env sigma (n+1) j candargs rest))
 	  | _ ->
             let sigma, hj = pretype empty_tycon env sigma c in
-	      error_cant_apply_not_functional
+              ret @@ error_cant_apply_not_functional
                 ?loc:(Loc.merge_opt floc argloc) !!env sigma resj [|hj|]
     in
-    let sigma, resj = apply_rec env sigma 1 fj candargs args in
+    seq (fun () -> apply_rec env sigma 1 fj candargs args)
+    (fun (sigma, resj) ->
     let sigma, resj =
       match EConstr.kind sigma resj.uj_val with
       | App (f,args) ->
@@ -710,7 +717,7 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
           else sigma, resj
       | _ -> sigma, resj
     in
-    inh_conv_coerce_to_tycon ?loc env sigma resj tycon
+    ret @@ inh_conv_coerce_to_tycon ?loc env sigma resj tycon)
 
   | GLambda(name,bk,c1,c2) ->
     let sigma, tycon' =
@@ -730,7 +737,7 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
     let sigma, j' = pretype rng env' sigma c2 in
     let name = get_name var' in
     let resj = judge_of_abstraction !!env (orelse_name name name'.binder_name) j j' in
-    inh_conv_coerce_to_tycon ?loc env sigma resj tycon
+    ret @@ inh_conv_coerce_to_tycon ?loc env sigma resj tycon
 
   | GProd(name,bk,c1,c2) ->
     let sigma, j = pretype_type empty_valcon env sigma c1 in
@@ -753,7 +760,7 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
         let (e, info) = CErrors.push e in
         let info = Option.cata (Loc.add_loc info) info loc in
         iraise (e, info) in
-      inh_conv_coerce_to_tycon ?loc env sigma resj tycon
+      ret @@ inh_conv_coerce_to_tycon ?loc env sigma resj tycon
 
   | GLetIn(name,c1,t,c2) ->
     let sigma, tycon1 =
@@ -773,8 +780,8 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
     let var, env = push_rel ~hypnaming sigma var env in
     let sigma, j' = pretype tycon env sigma c2 in
     let name = get_name var in
-    sigma, { uj_val = mkLetIn (make_annot name r, j.uj_val, t, j'.uj_val) ;
-             uj_type = subst1 j.uj_val j'.uj_type }
+    ret (sigma, { uj_val = mkLetIn (make_annot name r, j.uj_val, t, j'.uj_val) ;
+             uj_type = subst1 j.uj_val j'.uj_type })
 
   | GLetTuple (nal,(na,po),c,d) ->
     let sigma, cj = pretype empty_tycon env sigma c in
@@ -849,7 +856,7 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
                 let rci = Typing.check_allowed_sort !!env sigma ind cj.uj_val p in
                 obj ind rci p cj.uj_val fj.uj_val
             in
-            sigma, { uj_val = v; uj_type = (substl (realargs@[cj.uj_val]) ccl) }
+            ret (sigma, { uj_val = v; uj_type = (substl (realargs@[cj.uj_val]) ccl) })
 
 	  | None ->
 	    let tycon = lift_tycon cs.cs_nargs tycon in
@@ -867,7 +874,7 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
 	      let ind,_ = dest_ind_family indf in
                 let rci = Typing.check_allowed_sort !!env sigma ind cj.uj_val p in
                 obj ind rci p cj.uj_val fj.uj_val
-            in sigma, { uj_val = v; uj_type = ccl })
+            in ret (sigma, { uj_val = v; uj_type = ccl }))
 
   | GIf (c,(na,po),b1,b2) ->
     let sigma, cj = pretype empty_tycon env sigma c in
@@ -930,10 +937,10 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
           mkCase (ci, pred, cj.uj_val, [|b1;b2|])
       in
       let cj = { uj_val = v; uj_type = p } in
-      inh_conv_coerce_to_tycon ?loc env sigma cj tycon
+      ret @@ inh_conv_coerce_to_tycon ?loc env sigma cj tycon
 
   | GCases (sty,po,tml,eqns) ->
-    Cases.compile_cases ?loc ~program_mode sty (pretype, sigma) tycon env (po,tml,eqns)
+    ret @@ Cases.compile_cases ?loc ~program_mode sty (pretype, sigma) tycon env (po,tml,eqns)
 
   | GCast (c,k) ->
     let sigma, cj =
@@ -974,7 +981,7 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
         in
         let v = mkCast (cj.uj_val, k, tval) in
         sigma, { uj_val = v; uj_type = tval }
-    in inh_conv_coerce_to_tycon ?loc env sigma cj tycon
+    in ret @@ inh_conv_coerce_to_tycon ?loc env sigma cj tycon
 
       | GInt i ->
         let resj =
@@ -982,7 +989,7 @@ let rec pretype ~program_mode ~poly k0 resolve_tc (tycon : type_constraint) (env
           with Invalid_argument _ ->
             user_err ?loc ~hdr:"pretype" (str "Type of int63 should be registered first.")
         in
-        inh_conv_coerce_to_tycon ?loc env sigma resj tycon
+        ret @@ inh_conv_coerce_to_tycon ?loc env sigma resj tycon
 
 and pretype_instance ~program_mode ~poly k0 resolve_tc env sigma loc hyps evk update =
   let f decl (subst,update,sigma) =

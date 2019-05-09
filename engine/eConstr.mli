@@ -238,6 +238,8 @@ val compare_constr : Evd.evar_map -> (t -> t -> bool) -> t -> t -> bool
 
 (** {6 Iterators} *)
 
+open Trampoline
+
 val map : Evd.evar_map -> (t -> t) -> t -> t
 val map_user_view : Evd.evar_map -> (t -> t) -> t -> t
 val map_with_binders : Evd.evar_map -> ('a -> 'a) -> ('a -> t -> t) -> 'a -> t -> t
@@ -248,6 +250,9 @@ val iter : Evd.evar_map -> (t -> unit) -> t -> unit
 val iter_with_binders : Evd.evar_map -> ('a -> 'a) -> ('a -> t -> unit) -> 'a -> t -> unit
 val iter_with_full_binders : Evd.evar_map -> (rel_declaration -> 'a -> 'a) -> ('a -> t -> unit) -> 'a -> t -> unit
 val fold : Evd.evar_map -> ('a -> t -> 'a) -> 'a -> t -> 'a
+
+val iter'0 : Evd.evar_map -> (t -> unit thunk) -> t -> unit thunk
+val fold'0 : Evd.evar_map -> ('a -> t -> 'a thunk) -> 'a -> t -> 'a thunk
 
 (** Gather the universes transitively used in the term, including in the
    type of evars appearing in it. *)

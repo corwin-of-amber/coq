@@ -22,11 +22,12 @@ exception LocalOccur
    occurs in M, returns () otherwise *)
 
 let closedn n c =
+  let open Trampoline in
   let rec closed_rec n c = match Constr.kind c with
-    | Constr.Rel m -> if m>n then raise LocalOccur
-    | _ -> Constr.iter_with_binders succ closed_rec n c
+    | Constr.Rel m -> if m>n then raise LocalOccur else ret @@ ()
+    | _ -> Constr.iter_with_binders'0 succ closed_rec n c
   in
-  try closed_rec n c; true with LocalOccur -> false
+  try trampoline @@ closed_rec n c; true with LocalOccur -> false
 
 (* [closed0 M] is true iff [M] is a (de Bruijn) closed term *)
 
@@ -112,16 +113,17 @@ let lift_substituend depth s =
 let make_substituend c = { sinfo=Unknown; sit=c }
 
 let substn_many lamv n c =
+  let open Trampoline in
   let lv = Array.length lamv in
   if Int.equal lv 0 then c
   else
     let rec substrec depth c = match Constr.kind c with
-      | Constr.Rel k     ->
+      | Constr.Rel k     -> ret @@
           if k<=depth then c
           else if k-depth <= lv then lift_substituend depth (Array.unsafe_get lamv (k-depth-1))
           else Constr.mkRel (k-lv)
-      | _ -> Constr.map_with_binders succ substrec depth c in
-    substrec n c
+      | _ -> Constr.map_with_binders'0 succ substrec depth c in
+    trampoline @@ substrec n c
 
 (*
 let substkey = CProfile.declare_profile "substn_many";;
@@ -309,14 +311,15 @@ let subst_instance_context s ctx =
 
 let universes_of_constr c =
   let open Univ in
+  let open Trampoline in
   let rec aux s c =
     match kind c with
     | Const (_c, u) ->
-       LSet.fold LSet.add (Instance.levels u) s
+       ret @@ LSet.fold LSet.add (Instance.levels u) s
     | Ind ((_mind,_), u) | Construct (((_mind,_),_), u) ->
-       LSet.fold LSet.add (Instance.levels u) s
+       ret @@ LSet.fold LSet.add (Instance.levels u) s
     | Sort u when not (Sorts.is_small u) ->
       let u = Sorts.univ_of_sort u in
-      LSet.fold LSet.add (Universe.levels u) s
-    | _ -> Constr.fold aux s c
-  in aux LSet.empty c
+      ret @@ LSet.fold LSet.add (Universe.levels u) s
+    | _ -> Constr.fold'0 aux s c
+  in trampoline @@ aux LSet.empty c

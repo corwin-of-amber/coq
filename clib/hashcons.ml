@@ -108,7 +108,7 @@ module Hlist (D:HashedType) =
       type t = D.t list
       type u = (t -> t) * (D.t -> D.t)
       let hashcons (hrec,hdata) = function
-        | x :: l -> hdata x :: hrec l
+        | x :: l when List.length l < 10 -> hdata x :: hrec l (* --XXX-- *)
         | l -> l
       let eq l1 l2 =
         l1 == l2 ||

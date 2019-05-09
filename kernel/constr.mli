@@ -491,11 +491,15 @@ val fold_with_full_binders :
   (rel_declaration -> 'a -> 'a) -> ('a -> 'b -> constr -> 'b) ->
     'a -> 'b -> constr -> 'b
 
+val fold'0 : ('a -> constr -> 'a Trampoline.thunk) -> 'a -> constr -> 'a Trampoline.thunk
+
 (** [map f c] maps [f] on the immediate subterms of [c]; it is
    not recursive and the order with which subterms are processed is
    not specified *)
 
 val map : (constr -> constr) -> constr -> constr
+
+val map'0 : (constr -> constr Trampoline.thunk) -> constr -> constr Trampoline.thunk
 
 (** [map_user_view f c] maps [f] on the immediate subterms of [c]; it
    differs from [map f c] in that the typing context and body of the
@@ -517,11 +521,16 @@ val fold_map : ('a -> constr -> 'a * constr) -> 'a -> constr -> 'a * constr
 val map_with_binders :
   ('a -> 'a) -> ('a -> constr -> constr) -> 'a -> constr -> constr
 
+val map_with_binders'0 :
+  ('a -> 'a) -> ('a -> constr -> constr Trampoline.thunk) -> 'a -> constr -> constr Trampoline.thunk
+
 (** [iter f c] iters [f] on the immediate subterms of [c]; it is
    not recursive and the order with which subterms are processed is
    not specified *)
 
 val iter : (constr -> unit) -> constr -> unit
+
+val iter'0 : (constr -> unit Trampoline.thunk) -> constr -> unit Trampoline.thunk
 
 (** [iter_with_binders g f n c] iters [f n] on the immediate
    subterms of [c]; it carries an extra data [n] (typically a lift
@@ -531,6 +540,9 @@ val iter : (constr -> unit) -> constr -> unit
 
 val iter_with_binders :
   ('a -> 'a) -> ('a -> constr -> unit) -> 'a -> constr -> unit
+
+val iter_with_binders'0 :
+  ('a -> 'a) -> ('a -> constr -> unit Trampoline.thunk) -> 'a -> constr -> unit Trampoline.thunk
 
 (** [iter_with_binders g f n c] iters [f n] on the immediate
    subterms of [c]; it carries an extra data [n] (typically a lift

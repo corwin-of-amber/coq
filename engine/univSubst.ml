@@ -125,30 +125,31 @@ let subst_univs_fn_puniverses f (c, u as cu) =
   let u' = Instance.subst_fn f u in
     if u' == u then cu else (c, u')
 
-let nf_evars_and_universes_opt_subst f subst =
+let nf_evars_and_universes_opt_subst f subst c =
+  let open Trampoline in
   let subst = normalize_univ_variable_opt_subst subst in
   let lsubst = level_subst_of subst in
   let rec aux c =
     match kind c with
     | Evar (evk, args) ->
-      let args = Array.map aux args in
+      fmap aux args (fun args ->
       (match try f (evk, args) with Not_found -> None with
-      | None -> mkEvar (evk, args)
-      | Some c -> aux c)
+      | None -> ret @@ mkEvar (evk, args)
+      | Some c -> aux c))
     | Const pu ->
       let pu' = subst_univs_fn_puniverses lsubst pu in
-        if pu' == pu then c else mkConstU pu'
+        ret @@ if pu' == pu then c else mkConstU pu'
     | Ind pu ->
       let pu' = subst_univs_fn_puniverses lsubst pu in
-        if pu' == pu then c else mkIndU pu'
+        ret @@ if pu' == pu then c else mkIndU pu'
     | Construct pu ->
       let pu' = subst_univs_fn_puniverses lsubst pu in
-        if pu' == pu then c else mkConstructU pu'
+        ret @@ if pu' == pu then c else mkConstructU pu'
     | Sort (Type u) ->
       let u' = Univ.subst_univs_universe subst u in
-        if u' == u then c else mkSort (sort_of_univ u')
-    | _ -> Constr.map aux c
-  in aux
+        ret @@ if u' == u then c else mkSort (sort_of_univ u')
+    | _ -> Constr.map'0 aux c
+  in (trampoline @@ aux c)
 
 let make_opt_subst s =
   fun x ->

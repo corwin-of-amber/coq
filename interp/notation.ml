@@ -490,32 +490,45 @@ exception NotAValidPrimToken
     what it means for a term to be ground / to be able to be
     considered for parsing. *)
 
-let rec constr_of_glob env sigma g = match DAst.get g with
+let rec constr_of_glob_cps env sigma g cont = match DAst.get g with
   | Glob_term.GRef (ConstructRef c, _) ->
       let sigma,c = Evd.fresh_constructor_instance env sigma c in
-      sigma,mkConstructU c
+      cont @@ (sigma,mkConstructU c)
   | Glob_term.GRef (IndRef c, _) ->
       let sigma,c = Evd.fresh_inductive_instance env sigma c in
-      sigma,mkIndU c
+      cont @@ (sigma,mkIndU c)
   | Glob_term.GApp (gc, gcl) ->
       let sigma,c = constr_of_glob env sigma gc in
-      let sigma,cl = List.fold_left_map (constr_of_glob env) sigma gcl in
-      sigma,mkApp (c, Array.of_list cl)
-  | Glob_term.GInt i -> sigma, mkInt i
+      if List.length gcl = 1 then
+        constr_of_glob_cps env sigma (List.hd gcl) (fun (sigma, c0) ->
+                cont @@ (sigma,mkApp (c, [|c0|])))
+      else
+        let sigma,cl = List.fold_left_map (constr_of_glob env) sigma gcl in
+        cont @@ (sigma,mkApp (c, Array.of_list cl))
+  | Glob_term.GInt i -> cont @@ (sigma, mkInt i)
   | _ ->
       raise NotAValidPrimToken
 
-let rec glob_of_constr token_kind ?loc env sigma c = match Constr.kind c with
+and constr_of_glob env sigma g = constr_of_glob_cps env sigma g (fun x -> x)
+
+let rec glob_of_constr_cps token_kind ?loc env sigma c cont = match Constr.kind c with
   | App (c, ca) ->
       let c = glob_of_constr token_kind ?loc env sigma c in
-      let cel = List.map (glob_of_constr token_kind ?loc env sigma) (Array.to_list ca) in
-      DAst.make ?loc (Glob_term.GApp (c, cel))
-  | Construct (c, _) -> DAst.make ?loc (Glob_term.GRef (ConstructRef c, None))
-  | Const (c, _) -> DAst.make ?loc (Glob_term.GRef (ConstRef c, None))
-  | Ind (ind, _) -> DAst.make ?loc (Glob_term.GRef (IndRef ind, None))
-  | Var id -> DAst.make ?loc (Glob_term.GRef (VarRef id, None))
-  | Int i -> DAst.make ?loc (Glob_term.GInt i)
+      if Array.length ca = 1 then
+        glob_of_constr_cps token_kind ?loc env sigma ca.(0)
+          (fun x -> cont @@ DAst.make ?loc (Glob_term.GApp (c, [x])))
+      else
+        let cel = List.map (glob_of_constr token_kind ?loc env sigma) (Array.to_list ca) in
+        cont @@ DAst.make ?loc (Glob_term.GApp (c, cel))
+  | Construct (c, _) -> cont @@ DAst.make ?loc (Glob_term.GRef (ConstructRef c, None))
+  | Const (c, _) -> cont @@ DAst.make ?loc (Glob_term.GRef (ConstRef c, None))
+  | Ind (ind, _) -> cont @@ DAst.make ?loc (Glob_term.GRef (IndRef ind, None))
+  | Var id -> cont @@ DAst.make ?loc (Glob_term.GRef (VarRef id, None))
+  | Int i -> cont @@ DAst.make ?loc (Glob_term.GInt i)
   | _ -> Loc.raise ?loc (PrimTokenNotationError(token_kind,env,sigma,UnexpectedTerm c))
+
+and glob_of_constr token_kind ?loc env sigma c =
+  glob_of_constr_cps token_kind ?loc env sigma c (fun x -> x)
 
 let no_such_prim_token uninterpreted_token_kind ?loc ty =
   CErrors.user_err ?loc
